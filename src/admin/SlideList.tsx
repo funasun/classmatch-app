@@ -10,6 +10,7 @@ const TYPE_INFO: Record<SlideType, { label: string; icon: string; color: string 
   current: { label: '現在の試合', icon: '🏐', color: 'bg-blue-100 text-blue-800' },
   wbgt: { label: '暑さ指数', icon: '🌡️', color: 'bg-orange-100 text-orange-800' },
   matchResults: { label: '試合結果', icon: '📊', color: 'bg-green-100 text-green-800' },
+  courtMap: { label: 'コート配置図', icon: '🗺️', color: 'bg-teal-100 text-teal-800' },
   table: { label: '表', icon: '📋', color: 'bg-purple-100 text-purple-800' },
   notice: { label: 'お知らせ', icon: '📢', color: 'bg-amber-100 text-amber-800' },
 }
@@ -20,9 +21,20 @@ function newSlide(type: SlideType): Slide {
     case 'current':
       return { ...base, type, title: '現在の試合' }
     case 'wbgt':
-      return { ...base, type, title: '暑さ指数' }
+      return {
+        ...base,
+        type,
+        title: '暑さ指数',
+        readings: [
+          { label: '体育館', value: '' },
+          { label: 'ハンドボールコート', value: '' },
+        ],
+        measuredAt: '',
+      }
     case 'matchResults':
       return { ...base, type, title: '試合結果速報', courts: ['A', 'B'], note: DEFAULT_RESULTS_NOTE }
+    case 'courtMap':
+      return { ...base, type, title: 'コート配置図' }
     case 'table':
       return {
         ...base,

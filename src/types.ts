@@ -21,7 +21,7 @@ export interface Court {
   current: number
 }
 
-export type SlideType = 'current' | 'wbgt' | 'matchResults' | 'table' | 'notice'
+export type SlideType = 'current' | 'wbgt' | 'matchResults' | 'courtMap' | 'table' | 'notice'
 
 interface SlideBase {
   id: string
@@ -36,9 +36,18 @@ export interface CurrentSlide extends SlideBase {
   type: 'current'
 }
 
-/** 暑さ指数 */
+/** 暑さ指数の1測定地点（自分たちで測定した値を手入力） */
+export interface WbgtReading {
+  label: string      // 例: 体育館 / ハンドボールコート
+  value: string      // 例: 28.5（未測定なら空文字）
+}
+
+/** 暑さ指数（測定した地点ごとの値を表示） */
 export interface WbgtSlide extends SlideBase {
   type: 'wbgt'
+  readings: WbgtReading[]
+  /** 測定時刻の表示（例: 10:20）。空なら非表示 */
+  measuredAt: string
 }
 
 /** 試合結果速報（Excel再現。表示するコートを選ぶ） */
@@ -47,6 +56,11 @@ export interface MatchResultsSlide extends SlideBase {
   courts: CourtId[]
   /** タイトル帯の右に出る補足文 */
   note?: string
+}
+
+/** コート配置図（どの物理コートがどのリーグかをパンフレットの図で示す） */
+export interface CourtMapSlide extends SlideBase {
+  type: 'courtMap'
 }
 
 /** 汎用の表（リーグ結果・確定試合順など） */
@@ -67,6 +81,7 @@ export type Slide =
   | CurrentSlide
   | WbgtSlide
   | MatchResultsSlide
+  | CourtMapSlide
   | TableSlide
   | NoticeSlide
 

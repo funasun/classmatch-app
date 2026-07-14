@@ -12,9 +12,3 @@ export const FIREBASE_ENABLED = FIREBASE_API_KEY !== '' && FIREBASE_PROJECT_ID !
 
 /** ローカルモードでの管理画面の合言葉（Firebase モードでは Firebase のパスワードを使う） */
 export const ADMIN_PASSCODE: string = import.meta.env.VITE_ADMIN_PASSCODE ?? 'classmatch'
-
-/** WBGT 更新間隔（ms）。環境省の実況値は20分毎更新なので5分あれば十分 */
-export const WBGT_INTERVAL_MS = 5 * 60 * 1000
-
-/** WBGT 観測地点番号（高松） */
-export const WBGT_SPOT = '72086'

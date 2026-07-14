@@ -7,6 +7,7 @@ import type {
   NoticeSlide,
   Slide,
   TableSlide,
+  WbgtSlide,
 } from '../types'
 import { EditableGrid } from './EditableGrid'
 
@@ -336,6 +337,97 @@ export function NoticeEditor({
   )
 }
 
+/* ---------- 暑さ指数スライド：測定値の手入力 ---------- */
+
+export function WbgtEditor({
+  slide,
+  update,
+}: {
+  slide: WbgtSlide
+  update: Update
+}) {
+  const mutateSlide = (fn: (s: WbgtSlide) => void) =>
+    update((d) => fn(d.slides.find((s) => s.id === slide.id) as WbgtSlide))
+
+  return (
+    <div className="flex max-w-xl flex-col gap-4">
+      <p className="text-sm text-slate-500">
+        自分たちで測定したWBGTの値を入力してください。入力するとすぐ全エルモに反映されます。
+        値に応じて色とレベル（注意・警戒など）が自動で切り替わります。
+      </p>
+
+      {slide.readings.map((r, i) => (
+        <div
+          key={i}
+          className="flex items-end gap-3 rounded-xl border-2 border-slate-200 bg-white p-3"
+        >
+          <label className="flex-1 font-bold text-slate-600">
+            測定場所
+            <input
+              value={r.label}
+              onChange={(e) =>
+                mutateSlide((s) => {
+                  s.readings[i].label = e.target.value
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-bold"
+            />
+          </label>
+          <label className="w-32 font-bold text-slate-600">
+            WBGT値
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              value={r.value}
+              placeholder="例: 28.5"
+              onChange={(e) =>
+                mutateSlide((s) => {
+                  s.readings[i].value = e.target.value
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-extrabold"
+            />
+          </label>
+          {slide.readings.length > 1 && (
+            <button
+              onClick={() =>
+                mutateSlide((s) => {
+                  s.readings.splice(i, 1)
+                })
+              }
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+            >
+              削除
+            </button>
+          )}
+        </div>
+      ))}
+
+      <button
+        onClick={() =>
+          mutateSlide((s) => {
+            s.readings.push({ label: '測定場所', value: '' })
+          })
+        }
+        className="self-start rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-slate-50"
+      >
+        ＋ 測定場所を追加
+      </button>
+
+      <label className="font-bold text-slate-600">
+        測定時刻（任意・例: 10:20）
+        <input
+          value={slide.measuredAt}
+          placeholder="空欄なら表示しません"
+          onChange={(e) => mutateSlide((s) => (s.measuredAt = e.target.value))}
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+        />
+      </label>
+    </div>
+  )
+}
+
 /* ---------- スライド種類ごとのエディタ振り分け ---------- */
 
 export function SlideEditor({
@@ -358,15 +450,18 @@ export function SlideEditor({
         </div>
       )
     case 'wbgt':
+      return <WbgtEditor slide={slide} update={update} />
+    case 'matchResults':
+      return <MatchResultsEditor slide={slide} state={state} update={update} />
+    case 'courtMap':
       return (
         <p className="text-slate-500">
-          暑さ指数は環境省のデータから自動取得されるため、編集項目はありません。
+          パンフレットの「試合コートについて」の図をもとに、どのコート（A〜F）がどの学年かを表示します。
+          コート名と色は「試合データ」の各コート設定がそのまま使われるため、ここでの編集項目はありません。
           <br />
           右のプレビューで実際の表示を確認できます。
         </p>
       )
-    case 'matchResults':
-      return <MatchResultsEditor slide={slide} state={state} update={update} />
     case 'table':
       return <TableEditor slide={slide} update={update} />
     case 'notice':
