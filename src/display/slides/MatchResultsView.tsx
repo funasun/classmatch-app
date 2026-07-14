@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type CSSProperties } from 'react'
 import type { Court, MatchResultsSlide } from '../../types'
 import { pageSlice } from '../frames'
 import { FitScale } from '../../components/FitScale'
@@ -13,7 +13,21 @@ function tint(hex: string, alpha: number): string {
 }
 
 const cellBase =
-  'border border-slate-900 px-3 text-center font-bold whitespace-nowrap'
+  'border-2 border-slate-900 px-3 text-center font-bold whitespace-nowrap'
+
+/** 現在の試合の行を囲む赤枠。border-collapse でも分断されないよう、
+ *  outline ではなく各セルの罫線（幅の広い方が勝つ）として描く */
+const RED = '4px solid #ef4444'
+function currentBorder(
+  isCurrent: boolean,
+  pos: 'first' | 'last' | 'mid',
+): CSSProperties {
+  if (!isCurrent) return {}
+  const s: CSSProperties = { borderTop: RED, borderBottom: RED }
+  if (pos === 'first') s.borderLeft = RED
+  if (pos === 'last') s.borderRight = RED
+  return s
+}
 
 const STAGE_COLORS: Record<string, string> = {
   予選リーグ: '#305496',
@@ -58,25 +72,30 @@ function CourtTable({ court, page, pages }: { court: Court; page: number; pages:
                 <tr>
                   <td
                     colSpan={7}
-                    className="border border-slate-900 py-0.5 text-center text-[19px] font-extrabold tracking-widest text-white"
+                    className="border-2 border-slate-900 py-0.5 text-center text-[19px] font-extrabold tracking-widest text-white"
                     style={{ backgroundColor: STAGE_COLORS[r.stage!] ?? '#475569' }}
                   >
                     {r.stage}
                   </td>
                 </tr>
               )}
-              <tr className={isCurrent ? 'outline outline-4 outline-red-500' : ''}>
-                <td className={`${cellBase} bg-white py-1 text-[19px]`}>{r.time}</td>
-                <td className={`${cellBase} py-1`} style={{ backgroundColor: '#c6e0b4' }}>
+              <tr>
+                <td
+                  className={`${cellBase} bg-white py-1 text-[19px]`}
+                  style={currentBorder(isCurrent, 'first')}
+                >
+                  {r.time}
+                </td>
+                <td className={`${cellBase} py-1`} style={{ backgroundColor: '#c6e0b4', ...currentBorder(isCurrent, 'mid') }}>
                   {r.code}
                 </td>
-                <td className={`${cellBase} py-1`} style={{ backgroundColor: tint(court.color, 0.22) }}>
+                <td className={`${cellBase} py-1`} style={{ backgroundColor: tint(court.color, 0.22), ...currentBorder(isCurrent, 'mid') }}>
                   {r.left}
                 </td>
-                <td className={`${cellBase} relative min-w-[70px] py-1`} style={{ backgroundColor: scoreBg }}>
+                <td className={`${cellBase} relative min-w-[70px] py-1`} style={{ backgroundColor: scoreBg, ...currentBorder(isCurrent, 'mid') }}>
                   {r.leftScore}
                 </td>
-                <td className={`${cellBase} bg-white py-1 text-[18px]`}>
+                <td className={`${cellBase} bg-white py-1 text-[18px]`} style={currentBorder(isCurrent, 'mid')}>
                   {changed ? (
                     <span className="rounded bg-red-600 px-1 text-[14px] font-extrabold text-white">
                       更新
@@ -85,10 +104,10 @@ function CourtTable({ court, page, pages }: { court: Court; page: number; pages:
                     'vs'
                   )}
                 </td>
-                <td className={`${cellBase} min-w-[70px] py-1`} style={{ backgroundColor: scoreBg }}>
+                <td className={`${cellBase} min-w-[70px] py-1`} style={{ backgroundColor: scoreBg, ...currentBorder(isCurrent, 'mid') }}>
                   {r.rightScore}
                 </td>
-                <td className={`${cellBase} py-1`} style={{ backgroundColor: tint(court.color, 0.22) }}>
+                <td className={`${cellBase} py-1`} style={{ backgroundColor: tint(court.color, 0.22), ...currentBorder(isCurrent, 'last') }}>
                   {r.right}
                 </td>
               </tr>
