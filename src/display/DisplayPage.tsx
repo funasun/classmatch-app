@@ -40,13 +40,19 @@ function CautionBanner({ text }: { text: string }) {
   )
 }
 
-const SPEED_FACTOR: Record<Ticker['speed'], number> = { slow: 1.1, normal: 0.7, fast: 0.42 }
+// 1文字あたりの秒数（小さいほど速い）と最短の所要秒数
+const SPEED_FACTOR: Record<Ticker['speed'], { per: number; min: number }> = {
+  slow: { per: 0.9, min: 8 },
+  normal: { per: 0.42, min: 5 },
+  fast: { per: 0.16, min: 2.5 },
+}
 
 /** 画面下を右から左へ流れるテロップ。同じ文を2つ並べて途切れずループさせる。
  *  文字数に応じて時間を変え、読みやすい一定速度にする。
  *  流す回数が有限なら、その回数を流し終えたら onEnd で消える */
 function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
-  const seconds = Math.max(8, ticker.text.length * SPEED_FACTOR[ticker.speed])
+  const sp = SPEED_FACTOR[ticker.speed]
+  const seconds = Math.max(sp.min, ticker.text.length * sp.per)
   const iteration = ticker.repeat > 0 ? ticker.repeat : 'infinite'
   const textClass = `px-12 text-[2.6vw] font-extrabold tracking-wide ${ticker.blink ? 'animate-blink' : ''}`
   return (
