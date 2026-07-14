@@ -79,14 +79,14 @@ function MobileTicker({ ticker }: { ticker: Ticker }) {
     : { color: ticker.color }
   return (
     <div
-      className="flex h-9 items-center overflow-hidden"
+      className="flex h-12 items-center overflow-hidden"
       style={{ backgroundColor: ticker.bg }}
     >
       <div
         className="whitespace-nowrap will-change-transform"
         style={{ paddingLeft: '100%', animation: `marquee ${seconds}s linear infinite` }}
       >
-        <span className="text-base font-extrabold tracking-wide" style={textStyle}>
+        <span className="text-2xl font-extrabold tracking-wide" style={textStyle}>
           {ticker.text}
         </span>
       </div>
