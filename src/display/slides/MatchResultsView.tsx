@@ -35,7 +35,7 @@ const STAGE_COLORS: Record<string, string> = {
   決勝: '#bf8f00',
 }
 
-function CourtTable({ court, page, pages }: { court: Court; page: number; pages: number }) {
+export function CourtTable({ court, page, pages }: { court: Court; page: number; pages: number }) {
   const rows = pageSlice(court.rows, page, pages)
   const offset = page * Math.ceil(court.rows.length / pages)
 
