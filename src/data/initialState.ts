@@ -1,4 +1,4 @@
-import type { AppState, Court, CourtId, DisplayTexts, MatchRow, Slide } from '../types'
+import type { AppState, Court, CourtId, DisplayTexts, MatchRow, Slide, Ticker } from '../types'
 
 /** 試合順（5試合順.pdf 改訂版）の予定時刻。A・Bは16試合まで、C・Dは10試合、E・Fは7試合。
  *  各コートは先頭から自分の試合数ぶんだけ使う（時刻は10試合目まで全コート共通） */
@@ -132,6 +132,16 @@ export const initialSlides: Slide[] = [
   },
 ]
 
+export const defaultTicker: Ticker = {
+  enabled: false,
+  text: '',
+  speed: 'normal',
+  blink: false,
+  repeat: 0,
+  bg: '#0f172a',
+  color: '#ffffff',
+}
+
 export const defaultTexts: DisplayTexts = {
   cautionBanner: '⚠ 熱中症注意 ― こまめに水分・塩分をとってください（保健室より）',
   cancelTitle: '熱中症警戒のため\n試合中止',
@@ -145,7 +155,7 @@ export function createInitialState(): AppState {
     alert: 'normal',
     pinnedSlideId: null,
     texts: { ...defaultTexts },
-    ticker: { enabled: false, text: '' },
+    ticker: { ...defaultTicker },
     courts: initialCourts,
     slides: initialSlides,
   }
@@ -155,7 +165,7 @@ export function createInitialState(): AppState {
 export function normalizeState(state: AppState): AppState {
   state.pinnedSlideId ??= null
   state.texts = { ...defaultTexts, ...(state.texts ?? {}) }
-  state.ticker ??= { enabled: false, text: '' }
+  state.ticker = { ...defaultTicker, ...(state.ticker ?? {}) }
   for (const slide of state.slides) {
     if (slide.type === 'matchResults') slide.note ??= DEFAULT_RESULTS_NOTE
     if (slide.type === 'wbgt') {

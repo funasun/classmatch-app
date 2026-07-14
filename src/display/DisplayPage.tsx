@@ -5,7 +5,7 @@ import { SlideFrame } from './SlideFrame'
 import { FitScale } from '../components/FitScale'
 import { DebugOverlay } from './DebugOverlay'
 import { isDebugMode } from '../lib/debug'
-import type { AppState } from '../types'
+import type { AppState, Ticker } from '../types'
 
 /** 実寸1600×900のキャンバスに描いて画面全体へスケール。
  *  管理画面プレビューも同じ構図になる */
@@ -40,19 +40,30 @@ function CautionBanner({ text }: { text: string }) {
   )
 }
 
+const SPEED_FACTOR: Record<Ticker['speed'], number> = { slow: 1.1, normal: 0.7, fast: 0.42 }
+
 /** 画面下を右から左へ流れるテロップ。同じ文を2つ並べて途切れずループさせる。
- *  文字数に応じて時間を変え、読みやすい一定速度にする */
-function TickerBar({ text }: { text: string }) {
-  const seconds = Math.max(14, text.length * 0.7)
+ *  文字数に応じて時間を変え、読みやすい一定速度にする。
+ *  流す回数が有限なら、その回数を流し終えたら onEnd で消える */
+function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
+  const seconds = Math.max(8, ticker.text.length * SPEED_FACTOR[ticker.speed])
+  const iteration = ticker.repeat > 0 ? ticker.repeat : 'infinite'
+  const textClass = `px-12 text-[2.6vw] font-extrabold tracking-wide ${ticker.blink ? 'animate-blink' : ''}`
   return (
-    <div className="absolute inset-x-0 bottom-0 z-40 flex h-16 items-center overflow-hidden bg-slate-900/85">
+    <div
+      className="absolute inset-x-0 bottom-0 z-40 flex h-16 items-center overflow-hidden"
+      style={{ backgroundColor: ticker.bg }}
+    >
       <div
         className="flex shrink-0 whitespace-nowrap will-change-transform"
-        style={{ animation: `marquee ${seconds}s linear infinite` }}
+        style={{ animation: `marquee ${seconds}s linear ${iteration}` }}
+        onAnimationEnd={onEnd}
       >
-        <span className="px-12 text-[2.6vw] font-extrabold tracking-wide text-white">{text}</span>
-        <span className="px-12 text-[2.6vw] font-extrabold tracking-wide text-white" aria-hidden>
-          {text}
+        <span className={textClass} style={{ color: ticker.color }}>
+          {ticker.text}
+        </span>
+        <span className={textClass} style={{ color: ticker.color }} aria-hidden>
+          {ticker.text}
         </span>
       </div>
     </div>
@@ -76,9 +87,17 @@ export function DisplayPage() {
   const prevKeyRef = useRef<string>('')
 
   const canceled = state?.alert === 'canceled'
-  const showTicker = !!state?.ticker?.enabled && !!state?.ticker?.text.trim() && !canceled
+  const ticker = state?.ticker
+  // 有限回で流し終えたら消す（テキストや設定が変わったら再表示）
+  const [tickerDone, setTickerDone] = useState(false)
+  useEffect(() => {
+    setTickerDone(false)
+  }, [ticker?.text, ticker?.enabled, ticker?.repeat, ticker?.speed])
+  const showTicker =
+    !!ticker?.enabled && !!ticker.text.trim() && !canceled && !tickerDone
   const safeIndex = frames.length > 0 ? index % frames.length : 0
   const frame = frames[safeIndex] ?? null
+  const slideInset = showTicker ? 'inset-x-0 top-0 bottom-16' : 'inset-0'
 
   // ローテーションタイマー（中止中は停止。固定中はページ送りのみ）
   useEffect(() => {
@@ -131,12 +150,12 @@ export function DisplayPage() {
       {frame ? (
         <>
           {/* 現在のコマ（フェードイン） */}
-          <div key={frame.key} className="absolute inset-0 animate-[fade-in_0.8s_ease]">
+          <div key={frame.key} className={`absolute ${slideInset} animate-[fade-in_0.8s_ease]`}>
             <SlideCanvas frame={frame} state={state} />
           </div>
           {/* 直前のコマ（フェードアウト） */}
           {prevFrame && prevFrame.key !== frame.key && (
-            <div className="pointer-events-none absolute inset-0 animate-[fade-out_0.8s_ease_forwards]">
+            <div className={`pointer-events-none absolute ${slideInset} animate-[fade-out_0.8s_ease_forwards]`}>
               <SlideCanvas frame={prevFrame} state={state} />
             </div>
           )}
@@ -213,7 +232,13 @@ export function DisplayPage() {
       )}
 
       {state.alert === 'caution' && <CautionBanner text={state.texts.cautionBanner} />}
-      {showTicker && <TickerBar text={state.ticker.text} />}
+      {showTicker && (
+        <TickerBar
+          key={`${ticker!.text}|${ticker!.speed}|${ticker!.repeat}`}
+          ticker={ticker!}
+          onEnd={() => ticker!.repeat > 0 && setTickerDone(true)}
+        />
+      )}
       {canceled && <CancelOverlay title={state.texts.cancelTitle} sub={state.texts.cancelSub} />}
       {isDebugMode() && <DebugOverlay />}
     </div>

@@ -127,6 +127,144 @@ function TextsDialog({
   )
 }
 
+const SPEED_OPTIONS: { value: 'slow' | 'normal' | 'fast'; label: string }[] = [
+  { value: 'slow', label: 'ゆっくり' },
+  { value: 'normal', label: 'ふつう' },
+  { value: 'fast', label: 'はやい' },
+]
+
+const COLOR_PRESETS: { label: string; bg: string; color: string }[] = [
+  { label: '濃紺×白', bg: '#0f172a', color: '#ffffff' },
+  { label: '赤×白', bg: '#dc2626', color: '#ffffff' },
+  { label: '黄×黒', bg: '#facc15', color: '#0f172a' },
+  { label: '黒×黄', bg: '#0f172a', color: '#facc15' },
+  { label: '緑×白', bg: '#16a34a', color: '#ffffff' },
+  { label: '白×黒', bg: '#ffffff', color: '#0f172a' },
+]
+
+/** 流し文字（テロップ）の設定バー。ON/OFF・文章・速さ・点滅・回数・色を編集 */
+function TickerBar({
+  state,
+  update,
+}: {
+  state: AppState
+  update: (mutate: (draft: AppState) => void) => void
+}) {
+  const t = state.ticker
+  const set = (patch: Partial<AppState['ticker']>) =>
+    update((d) => {
+      Object.assign(d.ticker, patch)
+    })
+
+  return (
+    <div className="border-b border-slate-200 bg-white px-4 py-2">
+      <div className="flex items-center gap-3">
+        <label className="flex shrink-0 items-center gap-2 font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={t.enabled}
+            onChange={(e) => set({ enabled: e.target.checked })}
+            className="h-5 w-5"
+          />
+          流し文字
+        </label>
+        <input
+          value={t.text}
+          onChange={(e) => set({ text: e.target.value })}
+          placeholder="画面下に流すお知らせを入力（例: 3年女子 決勝は13時より体育館で行います）"
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-1.5 font-semibold focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+
+      {t.enabled && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 pl-8 text-sm">
+          {/* 速さ */}
+          <div className="flex items-center gap-1">
+            <span className="font-bold text-slate-500">速さ:</span>
+            {SPEED_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => set({ speed: o.value })}
+                className={`rounded-md px-2.5 py-1 font-bold ${
+                  t.speed === o.value ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 点滅 */}
+          <label className="flex items-center gap-1.5 font-bold text-slate-500">
+            <input
+              type="checkbox"
+              checked={t.blink}
+              onChange={(e) => set({ blink: e.target.checked })}
+              className="h-4 w-4"
+            />
+            点滅させる
+          </label>
+
+          {/* 流す回数 */}
+          <label className="flex items-center gap-1.5 font-bold text-slate-500">
+            流す回数:
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={t.repeat}
+              onChange={(e) => set({ repeat: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-16 rounded border border-slate-300 px-2 py-0.5 text-center"
+            />
+            <span className="text-xs font-normal text-slate-400">（0＝ずっと）</span>
+          </label>
+
+          {/* 色プリセット */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-500">色:</span>
+            {COLOR_PRESETS.map((p) => {
+              const active = t.bg === p.bg && t.color === p.color
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => set({ bg: p.bg, color: p.color })}
+                  title={p.label}
+                  style={{ backgroundColor: p.bg, color: p.color }}
+                  className={`rounded-md border px-2 py-1 text-xs font-extrabold ${
+                    active ? 'border-blue-600 ring-2 ring-blue-300' : 'border-slate-300'
+                  }`}
+                >
+                  あ
+                </button>
+              )
+            })}
+          </div>
+
+          {/* 自由な色指定 */}
+          <label className="flex items-center gap-1 font-bold text-slate-500">
+            背景
+            <input
+              type="color"
+              value={t.bg}
+              onChange={(e) => set({ bg: e.target.value })}
+              className="h-6 w-8 cursor-pointer rounded border border-slate-300"
+            />
+          </label>
+          <label className="flex items-center gap-1 font-bold text-slate-500">
+            文字
+            <input
+              type="color"
+              value={t.color}
+              onChange={(e) => set({ color: e.target.value })}
+              className="h-6 w-8 cursor-pointer rounded border border-slate-300"
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AdminPage() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem(AUTH_KEY) === '1')
   const { state, update, saveError, mode } = useEditableState()
@@ -245,36 +383,7 @@ export function AdminPage() {
       </header>
 
       {/* 流し文字（テロップ）設定バー */}
-      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
-        <label className="flex shrink-0 items-center gap-2 font-bold text-slate-700">
-          <input
-            type="checkbox"
-            checked={state.ticker.enabled}
-            onChange={(e) =>
-              update((d) => {
-                d.ticker ??= { enabled: false, text: '' }
-                d.ticker.enabled = e.target.checked
-              })
-            }
-            className="h-5 w-5"
-          />
-          流し文字
-        </label>
-        <input
-          value={state.ticker.text}
-          onChange={(e) =>
-            update((d) => {
-              d.ticker ??= { enabled: false, text: '' }
-              d.ticker.text = e.target.value
-            })
-          }
-          placeholder="画面下に流すお知らせを入力（例: 3年女子 決勝は13時より体育館で行います）"
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-1.5 font-semibold focus:border-blue-500 focus:outline-none"
-        />
-        <span className="shrink-0 text-xs text-slate-400">
-          ONにすると全画面の下に右から左へ流れます
-        </span>
-      </div>
+      <TickerBar state={state} update={update} />
 
       {/* 固定表示中の帯 */}
       {pinnedSlide && (
