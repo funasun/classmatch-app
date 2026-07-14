@@ -40,19 +40,20 @@ function CautionBanner({ text }: { text: string }) {
   )
 }
 
-// 1文字あたりの秒数（小さいほど速い）と最短の所要秒数
-const SPEED_FACTOR: Record<Ticker['speed'], { per: number; min: number }> = {
-  slow: { per: 0.9, min: 8 },
-  normal: { per: 0.42, min: 5 },
-  fast: { per: 0.16, min: 2.5 },
+// 1文字あたりの秒数（小さいほど速い）。実際の移動距離は「画面幅＋文字幅」なので、
+// 画面を横切るぶん（CROSS 文字ぶん）を足して、速さが一定になるようにする
+const CROSS = 36
+const SPEED_FACTOR: Record<Ticker['speed'], number> = {
+  slow: 0.62,
+  normal: 0.36,
+  fast: 0.2,
 }
 
 /** 画面下を右端の外から入って左端の外へ抜けるテロップ。
  *  文字数に応じて時間を変え、読みやすい一定速度にする。
  *  流す回数が有限なら、その回数（＝端から端まで通過した回数）ぶんで onEnd で消える */
 function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
-  const sp = SPEED_FACTOR[ticker.speed]
-  const seconds = Math.max(sp.min, ticker.text.length * sp.per)
+  const seconds = (CROSS + ticker.text.length) * SPEED_FACTOR[ticker.speed]
   const iteration = ticker.repeat > 0 ? ticker.repeat : 'infinite'
   const textStyle: CSSProperties = ticker.blink
     ? ({
