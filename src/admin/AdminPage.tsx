@@ -195,15 +195,28 @@ function TickerBar({
           </div>
 
           {/* 点滅 */}
-          <label className="flex items-center gap-1.5 font-bold text-slate-500">
-            <input
-              type="checkbox"
-              checked={t.blink}
-              onChange={(e) => set({ blink: e.target.checked })}
-              className="h-4 w-4"
-            />
-            点滅させる
-          </label>
+          <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1.5 font-bold text-slate-500">
+              <input
+                type="checkbox"
+                checked={t.blink}
+                onChange={(e) => set({ blink: e.target.checked })}
+                className="h-4 w-4"
+              />
+              点滅させる
+            </label>
+            {t.blink && (
+              <label className="flex items-center gap-1 font-bold text-slate-500">
+                点滅色
+                <input
+                  type="color"
+                  value={t.blinkColor}
+                  onChange={(e) => set({ blinkColor: e.target.value })}
+                  className="h-6 w-8 cursor-pointer rounded border border-slate-300"
+                />
+              </label>
+            )}
+          </div>
 
           {/* 流す回数 */}
           <label className="flex items-center gap-1.5 font-bold text-slate-500">

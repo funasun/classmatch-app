@@ -28,10 +28,15 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
-/* 流し文字（同じ文を2つ並べ、半分ぶん動かすと途切れずループ） */
+/* 流し文字（右端の外から入って、左端の外へ抜ける） */
 @keyframes marquee {
   from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  to { transform: translateX(-100%); }
+}
+/* 2色点滅（前半は色A、後半は色B。ほぼ瞬時に切り替わる） */
+@keyframes ticker-blink {
+  0%, 49.9% { color: var(--blink-a); }
+  50%, 100% { color: var(--blink-b); }
 }
 .animate-blink {
   animation: blink-alert 1.2s ease-in-out infinite;

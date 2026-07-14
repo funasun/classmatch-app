@@ -101,6 +101,7 @@ export interface Ticker {
   text: string
   speed: 'slow' | 'normal' | 'fast'
   blink: boolean
+  blinkColor: string  // 点滅時にもう一方で使う色（hex）
   /** 流す回数。0 = ずっと（無限ループ） */
   repeat: number
   bg: string      // 背景色（hex）

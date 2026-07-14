@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
 import { buildFrames, buildPinnedFrames, type Frame } from './frames'
 import { SlideFrame } from './SlideFrame'
@@ -47,28 +47,32 @@ const SPEED_FACTOR: Record<Ticker['speed'], { per: number; min: number }> = {
   fast: { per: 0.16, min: 2.5 },
 }
 
-/** 画面下を右から左へ流れるテロップ。同じ文を2つ並べて途切れずループさせる。
+/** 画面下を右端の外から入って左端の外へ抜けるテロップ。
  *  文字数に応じて時間を変え、読みやすい一定速度にする。
- *  流す回数が有限なら、その回数を流し終えたら onEnd で消える */
+ *  流す回数が有限なら、その回数（＝端から端まで通過した回数）ぶんで onEnd で消える */
 function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
   const sp = SPEED_FACTOR[ticker.speed]
   const seconds = Math.max(sp.min, ticker.text.length * sp.per)
   const iteration = ticker.repeat > 0 ? ticker.repeat : 'infinite'
-  const textClass = `px-12 text-[2.6vw] font-extrabold tracking-wide ${ticker.blink ? 'animate-blink' : ''}`
+  const textStyle: CSSProperties = ticker.blink
+    ? ({
+        '--blink-a': ticker.color,
+        '--blink-b': ticker.blinkColor,
+        animation: 'ticker-blink 0.8s linear infinite',
+      } as CSSProperties)
+    : { color: ticker.color }
   return (
     <div
       className="absolute inset-x-0 bottom-0 z-40 flex h-16 items-center overflow-hidden"
       style={{ backgroundColor: ticker.bg }}
     >
+      {/* paddingLeft:100% で右端の外から出発させる */}
       <div
-        className="flex shrink-0 whitespace-nowrap will-change-transform"
-        style={{ animation: `marquee ${seconds}s linear ${iteration}` }}
+        className="whitespace-nowrap will-change-transform"
+        style={{ paddingLeft: '100%', animation: `marquee ${seconds}s linear ${iteration}` }}
         onAnimationEnd={onEnd}
       >
-        <span className={textClass} style={{ color: ticker.color }}>
-          {ticker.text}
-        </span>
-        <span className={textClass} style={{ color: ticker.color }} aria-hidden>
+        <span className="text-[2.6vw] font-extrabold tracking-wide" style={textStyle}>
           {ticker.text}
         </span>
       </div>

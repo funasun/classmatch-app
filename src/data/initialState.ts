@@ -137,6 +137,7 @@ export const defaultTicker: Ticker = {
   text: '',
   speed: 'normal',
   blink: false,
+  blinkColor: '#facc15',
   repeat: 0,
   bg: '#0f172a',
   color: '#ffffff',
