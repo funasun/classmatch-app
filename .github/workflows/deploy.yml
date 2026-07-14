@@ -29,8 +29,10 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
-          VITE_ADMIN_PASSCODE: ${{ secrets.VITE_ADMIN_PASSCODE }}
+          # Firebase の apiKey は公開前提の識別子（秘密情報ではない）なので Variables でよい
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_ADMIN_EMAIL: ${{ vars.VITE_FIREBASE_ADMIN_EMAIL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

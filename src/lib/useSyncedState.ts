@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppState } from '../types'
 import { backend } from './sync'
-import { ADMIN_PASSCODE } from './config'
+import { recordChanges } from './changes'
 
-/** 表示画面用：購読のみ */
+/** 表示画面用：購読のみ。点数の変化を記録して「更新」マークに使う */
 export function useSyncedState(): AppState | null {
   const [state, setState] = useState<AppState | null>(null)
-  useEffect(() => backend.subscribe(setState), [])
+  const prevRef = useRef<AppState | null>(null)
+  useEffect(
+    () =>
+      backend.subscribe((incoming) => {
+        recordChanges(prevRef.current, incoming)
+        prevRef.current = incoming
+        setState(incoming)
+      }),
+    [],
+  )
   return state
 }
 
@@ -36,7 +45,7 @@ export function useEditableState() {
       next.version = prev.version + 1
       next.updatedAt = new Date().toISOString()
       localVersion.current = next.version
-      backend.save(next, ADMIN_PASSCODE).then((ok) => setSaveError(!ok))
+      backend.save(next).then((ok) => setSaveError(!ok))
       return next
     })
   }, [])

@@ -73,6 +73,16 @@ export function DisplayPage() {
   // 固定表示の開始・解除時は先頭ページから
   useEffect(() => setIndex(0), [state?.pinnedSlideId])
 
+  // 画面の右側タップで次へ、左側タップで前へ（中止表示中は無効）
+  const step = (delta: number) =>
+    setIndex((i) => (frames.length > 0 ? (i + delta + frames.length) % frames.length : 0))
+  const onTap = (e: React.MouseEvent) => {
+    if (canceled || frames.length <= 1) return
+    const x = e.clientX / window.innerWidth
+    if (x > 0.66) step(1)
+    else if (x < 0.34) step(-1)
+  }
+
   // クロスフェード用に直前のコマを800msだけ残す
   useEffect(() => {
     if (!frame) return
@@ -97,7 +107,7 @@ export function DisplayPage() {
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-900">
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-900" onClick={onTap}>
       {frame ? (
         <>
           {/* 現在のコマ（フェードイン） */}
@@ -125,6 +135,18 @@ export function DisplayPage() {
               </span>
             )}
           </div>
+
+          {/* 左右のうっすら矢印（タップでページ送りできる目印） */}
+          {!canceled && frames.length > 1 && (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-2 text-6xl font-bold text-white/25">
+                ‹
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center pr-2 text-6xl font-bold text-white/25">
+                ›
+              </div>
+            </>
+          )}
 
           {/* 右下: 全体の位置（スライド 3/6 ＋ ドット） */}
           {!canceled && frames.length > 1 && (

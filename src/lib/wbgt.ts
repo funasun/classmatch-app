@@ -1,4 +1,4 @@
-import { API_BASE, WBGT_SPOT } from './config'
+import { FIREBASE_ENABLED, WBGT_SPOT } from './config'
 import { debugLog } from './debug'
 
 export interface WbgtLevel {
@@ -19,7 +19,7 @@ export function wbgtLevel(value: number): WbgtLevel {
 export interface WbgtResult {
   value: number
   measuredAt: string          // 例: 2026-07-14 10:20
-  source: 'direct' | 'proxy'
+  source: 'direct' | 'shared'
   dataType: '実測値' | '実況推定値'
 }
 
@@ -71,34 +71,84 @@ export function fetchWbgtCached(): Promise<WbgtResult> {
   return promise
 }
 
-/** 環境省API直接 → Xserverプロキシ の順で試し、
- *  それぞれ実測値(data_type=1) → 実況推定値(data_type=0) にフォールバックする */
-export async function fetchWbgt(): Promise<WbgtResult> {
-  const bases: { base: string; source: WbgtResult['source'] }[] = [
-    { base: 'https://www.wbgt.env.go.jp/api/v1/getSurveyData', source: 'direct' },
-  ]
-  if (API_BASE) bases.push({ base: `${API_BASE}/wbgt.php`, source: 'proxy' })
+/** 取得成功時に Firestore へ共有（管理画面＝ログイン済みの端末のみ書ける）。
+ *  エルモ側で env.go.jp が弾かれても、本部PCが取得した値で表示を継続できる */
+async function publishShared(result: WbgtResult) {
+  if (!FIREBASE_ENABLED) return
+  try {
+    const [{ doc, setDoc }, { getFirebase }] = await Promise.all([
+      import('firebase/firestore'),
+      import('./firebase'),
+    ])
+    const { db, auth } = getFirebase()
+    await auth.authStateReady()
+    if (!auth.currentUser) return
+    await setDoc(doc(db, 'classmatch', 'wbgt'), {
+      value: result.value,
+      measuredAt: result.measuredAt,
+      dataType: result.dataType,
+      sharedAt: Date.now(),
+    })
+    debugLog('WBGT: 取得値を Firestore に共有')
+  } catch {
+    /* 共有は補助機能なので失敗しても無視 */
+  }
+}
 
+/** 直接取得できない端末向け：他の端末が共有した最新値を読む（3時間以内のみ有効） */
+async function fetchShared(): Promise<WbgtResult> {
+  if (!FIREBASE_ENABLED) throw new Error('Firebase未設定')
+  const [{ doc, getDoc }, { getFirebase }] = await Promise.all([
+    import('firebase/firestore'),
+    import('./firebase'),
+  ])
+  const snap = await getDoc(doc(getFirebase().db, 'classmatch', 'wbgt'))
+  const data = snap.data()
+  if (!data) throw new Error('共有データなし')
+  if (Date.now() - (data.sharedAt as number) > 3 * 60 * 60 * 1000) {
+    throw new Error('共有データが古い')
+  }
+  return {
+    value: data.value as number,
+    measuredAt: data.measuredAt as string,
+    source: 'shared',
+    dataType: data.dataType as WbgtResult['dataType'],
+  }
+}
+
+/** 環境省APIを直接取得（実測値 → 実況推定値の順）。
+ *  失敗したら他端末が Firestore に共有した値へフォールバックする */
+export async function fetchWbgt(): Promise<WbgtResult> {
   let lastError: unknown = null
-  for (const { base, source } of bases) {
-    for (const dataType of [1, 0] as const) {
-      const label = dataType === 1 ? '実測値' : '実況推定値'
-      try {
-        const body = await fetchJson(`${base}?${buildQuery(dataType)}`)
-        const latest = pickLatest(body)
-        if (!latest) {
-          debugLog(`WBGT: ${source}/${label} はデータ空、次を試行`)
-          continue
-        }
-        const value = Number(latest.wbgt_WO)
-        const measuredAt = (latest.wbgt_date ?? '').replace(/:00$/, '')
-        debugLog(`WBGT: ${source}/${label} から取得成功 (${value})`)
-        return { value, measuredAt, source, dataType: label }
-      } catch (e) {
-        lastError = e
-        debugLog(`WBGT: ${source}/${label} 失敗 (${String(e)})`)
+  for (const dataType of [1, 0] as const) {
+    const label = dataType === 1 ? '実測値' : '実況推定値'
+    try {
+      const body = await fetchJson(
+        `https://www.wbgt.env.go.jp/api/v1/getSurveyData?${buildQuery(dataType)}`,
+      )
+      const latest = pickLatest(body)
+      if (!latest) {
+        debugLog(`WBGT: ${label} はデータ空、次を試行`)
+        continue
       }
+      const value = Number(latest.wbgt_WO)
+      const measuredAt = (latest.wbgt_date ?? '').replace(/:00$/, '')
+      debugLog(`WBGT: ${label} から取得成功 (${value})`)
+      const result: WbgtResult = { value, measuredAt, source: 'direct', dataType: label }
+      publishShared(result)
+      return result
+    } catch (e) {
+      lastError = e
+      debugLog(`WBGT: ${label} 失敗 (${String(e)})`)
     }
+  }
+
+  try {
+    const shared = await fetchShared()
+    debugLog(`WBGT: 直接取得できないため共有値を使用 (${shared.value})`)
+    return shared
+  } catch (e) {
+    debugLog(`WBGT: 共有値も取得できず (${String(e)})`)
   }
   throw lastError ?? new Error('WBGTデータなし')
 }

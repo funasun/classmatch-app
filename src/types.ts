@@ -4,6 +4,8 @@ export type CourtId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
 export interface MatchRow {
   code: string       // 例: A-1
   time?: string      // 例: 9:05~9:20（パンフレットの予定時刻）
+  /** 区分（予選リーグ／順位決定トーナメント／決勝）。前の行と変わったところに帯が入る */
+  stage?: string
   left: string       // 例: 3-1（クラス）
   leftScore: string
   rightScore: string

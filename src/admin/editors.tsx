@@ -15,18 +15,82 @@ type Update = (mutate: (draft: AppState) => void) => void
 /* ---------- 試合データ（コート別）の編集 ---------- */
 
 function courtToGrid(court: Court): string[][] {
-  return court.rows.map((r) => [r.code, r.time ?? '', r.left, r.leftScore, r.rightScore, r.right])
+  return court.rows.map((r) => [
+    r.code,
+    r.stage ?? '',
+    r.time ?? '',
+    r.left,
+    r.leftScore,
+    r.rightScore,
+    r.right,
+  ])
 }
 
 function gridToRows(grid: string[][]) {
   return grid.map((r) => ({
     code: r[0] ?? '',
-    time: r[1] ?? '',
-    left: r[2] ?? '',
-    leftScore: r[3] ?? '',
-    rightScore: r[4] ?? '',
-    right: r[5] ?? '',
+    stage: r[1] ?? '',
+    time: r[2] ?? '',
+    left: r[3] ?? '',
+    leftScore: r[4] ?? '',
+    rightScore: r[5] ?? '',
+    right: r[6] ?? '',
   }))
+}
+
+/** 全コートの進行をワンタッチで進めるパネル。コートごとに進捗が違ってもOK */
+function AllCourtsPanel({ state, update }: { state: AppState; update: Update }) {
+  const advance = (id: CourtId, delta: number) =>
+    update((d) => {
+      const c = d.courts.find((c) => c.id === id)!
+      c.current = Math.max(-1, Math.min(c.rows.length, c.current + delta))
+    })
+
+  return (
+    <div className="mb-4 rounded-xl border-2 border-slate-200 bg-white p-3">
+      <div className="mb-2 font-bold text-slate-600">
+        全コートの進行（押すとすぐ全エルモに反映）
+      </div>
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
+        {state.courts.map((c) => {
+          const m = c.rows[c.current]
+          return (
+            <div
+              key={c.id}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2"
+            >
+              <span
+                className="w-8 shrink-0 rounded-md py-1 text-center font-extrabold text-white"
+                style={{ backgroundColor: c.color }}
+              >
+                {c.id}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700">
+                {c.current < 0
+                  ? '開始前'
+                  : c.current >= c.rows.length
+                    ? '全試合終了'
+                    : `${m?.code} ${m?.left} vs ${m?.right}`}
+              </span>
+              <button
+                onClick={() => advance(c.id, -1)}
+                title="ひとつ戻る"
+                className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm font-bold hover:bg-slate-100"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => advance(c.id, 1)}
+                className="shrink-0 rounded-md bg-blue-600 px-3 py-1 text-sm font-extrabold text-white hover:bg-blue-700"
+              >
+                次へ →
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function CourtDataEditor({ state, update }: { state: AppState; update: Update }) {
@@ -42,6 +106,8 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
 
   return (
     <div>
+      <AllCourtsPanel state={state} update={update} />
+
       <div className="mb-3 flex gap-1">
         {state.courts.map((c) => (
           <button
@@ -97,7 +163,7 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
       </div>
 
       <EditableGrid
-        columnLabels={['コード', '時刻', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
+        columnLabels={['コード', '区分', '時刻', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
         data={courtToGrid(court)}
         highlightRow={court.current}
         onChange={(grid) =>

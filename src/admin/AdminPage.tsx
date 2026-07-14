@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useEditableState } from '../lib/useSyncedState'
-import { ADMIN_PASSCODE } from '../lib/config'
+import { backend } from '../lib/sync'
 import type { AlertStatus, AppState } from '../types'
 import { SlideList } from './SlideList'
 import { SlideEditor } from './editors'
@@ -12,9 +12,14 @@ const AUTH_KEY = 'classmatch-admin-ok'
 function PasscodeGate({ onOk }: { onOk: () => void }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-  const submit = () => {
-    if (input === ADMIN_PASSCODE) {
+  const submit = async () => {
+    if (busy) return
+    setBusy(true)
+    const ok = await backend.verifyPasscode(input)
+    setBusy(false)
+    if (ok) {
       sessionStorage.setItem(AUTH_KEY, '1')
       onOk()
     } else {
@@ -44,9 +49,10 @@ function PasscodeGate({ onOk }: { onOk: () => void }) {
         {error && <p className="mb-3 text-center font-bold text-red-600">合言葉が違います</p>}
         <button
           onClick={submit}
-          className="w-full rounded-xl bg-blue-600 py-3 text-lg font-extrabold text-white hover:bg-blue-700"
+          disabled={busy}
+          className="w-full rounded-xl bg-blue-600 py-3 text-lg font-extrabold text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          入る
+          {busy ? '確認中...' : '入る'}
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import type { AppState } from '../types'
 import { createInitialState, normalizeState } from '../data/initialState'
-import { API_BASE, POLL_INTERVAL_MS } from './config'
+import { ADMIN_PASSCODE, FIREBASE_ADMIN_EMAIL, FIREBASE_ENABLED } from './config'
 import { debugLog } from './debug'
 
 const CACHE_KEY = 'classmatch-state-cache'
@@ -9,7 +9,9 @@ export interface SyncBackend {
   /** 状態の変更を購読する。初回は即座に現在値が届く */
   subscribe(cb: (state: AppState) => void): () => void
   /** 保存（管理画面から）。成功したら true */
-  save(state: AppState, passcode: string): Promise<boolean>
+  save(state: AppState): Promise<boolean>
+  /** 管理画面に入る合言葉の確認（Firebaseモードではログインを兼ねる） */
+  verifyPasscode(passcode: string): Promise<boolean>
   readonly mode: 'remote' | 'local'
 }
 
@@ -31,7 +33,7 @@ function writeCache(state: AppState) {
 }
 
 /** ローカルモード：localStorage + BroadcastChannel。
- *  Xserver 未設定でも同一PC内で管理画面→表示画面の同期を確認できる */
+ *  Firebase 未設定でも同一PC内で管理画面→表示画面の同期を確認できる */
 class LocalBackend implements SyncBackend {
   readonly mode = 'local' as const
   private channel = new BroadcastChannel('classmatch-sync')
@@ -40,7 +42,7 @@ class LocalBackend implements SyncBackend {
     const current = normalizeState(readCache() ?? createInitialState())
     writeCache(current)
     cb(current)
-    debugLog('同期: ローカルモードで開始（VITE_API_BASE 未設定）')
+    debugLog('同期: ローカルモードで開始（Firebase 未設定）')
     const handler = (ev: MessageEvent) => cb(normalizeState(ev.data as AppState))
     this.channel.addEventListener('message', handler)
     return () => this.channel.removeEventListener('message', handler)
@@ -51,67 +53,91 @@ class LocalBackend implements SyncBackend {
     this.channel.postMessage(state)
     return true
   }
+
+  async verifyPasscode(passcode: string): Promise<boolean> {
+    return passcode === ADMIN_PASSCODE
+  }
 }
 
-/** リモートモード：Xserver の state.php を1.5秒間隔でポーリング。
- *  失敗時は最後に取得した内容（キャッシュ）で表示を継続する */
-class RemoteBackend implements SyncBackend {
+/** リモートモード：Firestore のリアルタイム購読。
+ *  更新は1秒未満でエルモ側へ push 配信され、切断時はキャッシュ表示を継続する。
+ *  Firestore はネストした配列を保存できないため、状態は JSON 文字列1フィールドで持つ */
+class FirebaseBackend implements SyncBackend {
   readonly mode = 'remote' as const
-  private lastVersion = 0
   private failureLogged = false
+
+  private async docRef() {
+    const [{ doc }, { getFirebase }] = await Promise.all([
+      import('firebase/firestore'),
+      import('./firebase'),
+    ])
+    return doc(getFirebase().db, 'classmatch', 'state')
+  }
 
   subscribe(cb: (state: AppState) => void): () => void {
     const cached = readCache()
     if (cached) {
-      this.lastVersion = cached.version
       cb(normalizeState(cached))
       debugLog(`同期: キャッシュから復元 (v${cached.version})`)
     }
 
+    let unsub: (() => void) | null = null
     let stopped = false
-    const poll = async () => {
-      try {
-        const res = await fetch(
-          `${API_BASE}/state.php?known=${this.lastVersion}`,
-          { cache: 'no-store' },
-        )
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const body = await res.json()
-        if (this.failureLogged) {
+
+    ;(async () => {
+      const [{ onSnapshot }, ref] = await Promise.all([
+        import('firebase/firestore'),
+        this.docRef(),
+      ])
+      if (stopped) return
+      unsub = onSnapshot(
+        ref,
+        (snap) => {
           this.failureLogged = false
-          debugLog('同期: 通信が回復しました')
-        }
-        if (!body.unchanged) {
-          const state = normalizeState(body as AppState)
-          this.lastVersion = state.version
-          writeCache(state)
-          if (!stopped) cb(state)
-          debugLog(`同期: 更新を受信 (v${state.version})`)
-        }
-      } catch (e) {
-        if (!this.failureLogged) {
-          this.failureLogged = true
-          debugLog(`同期: 取得失敗、キャッシュ表示を継続 (${String(e)})`)
-        }
-      }
-    }
-    poll()
-    const timer = setInterval(poll, POLL_INTERVAL_MS)
+          const data = snap.data()
+          if (!data?.json) {
+            debugLog('同期: サーバにデータ未作成（管理画面での初回保存で作られます）')
+            if (!cached) cb(normalizeState(createInitialState()))
+            return
+          }
+          try {
+            const state = normalizeState(JSON.parse(data.json as string) as AppState)
+            writeCache(state)
+            cb(state)
+            debugLog(`同期: 更新を受信 (v${state.version})`)
+          } catch (e) {
+            debugLog(`同期: 受信データの解析に失敗 (${String(e)})`)
+          }
+        },
+        (e) => {
+          if (!this.failureLogged) {
+            this.failureLogged = true
+            debugLog(`同期: 接続エラー、キャッシュ表示を継続 (${String(e)})`)
+          }
+        },
+      )
+      debugLog('同期: Firestore のリアルタイム購読を開始')
+    })()
+
     return () => {
       stopped = true
-      clearInterval(timer)
+      unsub?.()
     }
   }
 
-  async save(state: AppState, passcode: string): Promise<boolean> {
+  async save(state: AppState): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/state.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode, state }),
+      const [{ setDoc }, { getFirebase }, ref] = await Promise.all([
+        import('firebase/firestore'),
+        import('./firebase'),
+        this.docRef(),
+      ])
+      await getFirebase().auth.authStateReady()
+      await setDoc(ref, {
+        version: state.version,
+        updatedAt: state.updatedAt,
+        json: JSON.stringify(state),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      this.lastVersion = state.version
       writeCache(state)
       debugLog(`同期: 保存成功 (v${state.version})`)
       return true
@@ -120,6 +146,21 @@ class RemoteBackend implements SyncBackend {
       return false
     }
   }
+
+  /** 合言葉 = Firebase の管理ユーザーのパスワード。ログイン成功＝合言葉一致 */
+  async verifyPasscode(passcode: string): Promise<boolean> {
+    try {
+      const [{ signInWithEmailAndPassword }, { getFirebase }] = await Promise.all([
+        import('firebase/auth'),
+        import('./firebase'),
+      ])
+      await signInWithEmailAndPassword(getFirebase().auth, FIREBASE_ADMIN_EMAIL, passcode)
+      return true
+    } catch (e) {
+      debugLog(`認証: ログイン失敗 (${String(e)})`)
+      return false
+    }
+  }
 }
 
-export const backend: SyncBackend = API_BASE ? new RemoteBackend() : new LocalBackend()
+export const backend: SyncBackend = FIREBASE_ENABLED ? new FirebaseBackend() : new LocalBackend()

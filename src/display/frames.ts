@@ -3,6 +3,9 @@ import type { AppState, Slide } from '../types'
 /** 1ページに載せる最大行数。超えたら「1/2」「2/2」に自動分割 */
 export const MAX_ROWS_PER_PAGE = 12
 
+/** 進行表兼結果速報は全15試合を1画面に収めたいので閾値を広めにとる（FitScaleが縮小する） */
+export const MAX_RESULT_ROWS_PER_PAGE = 16
+
 /** ローテーションの1コマ。表が長いスライドは複数コマに展開される */
 export interface Frame {
   slide: Slide
@@ -19,7 +22,7 @@ export function pageCount(slide: Slide, state: AppState): number {
         .filter((c) => slide.courts.includes(c.id))
         .map((c) => c.rows.length),
     )
-    return Math.ceil(max / MAX_ROWS_PER_PAGE)
+    return Math.ceil(max / MAX_RESULT_ROWS_PER_PAGE)
   }
   if (slide.type === 'table') {
     return Math.max(1, Math.ceil(slide.rows.length / MAX_ROWS_PER_PAGE))
