@@ -35,10 +35,17 @@ const STAGE_COLORS: Record<string, string> = {
   決勝: '#bf8f00',
 }
 
-// 勝ち・負けの色分け（両方に点数が入った試合のみ）
-const WIN_SCORE_BG = '#bbf7d0' // 勝った点数セル（緑）
-const WIN_CLASS_BG = '#dcfce7' // 勝ったクラスセル（薄緑）
-const LOSE_BG = '#eef2f6' // 負け側（薄いグレー）
+// 負け側は共通で薄いグレー。勝ち側はコート色に合わせて自動で決める
+const LOSE_BG = '#eef2f6'
+
+/** 背景色の明るさから、その上で読みやすい文字色（白 or 濃紺）を返す */
+function contrastText(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.6 ? '#0f172a' : '#ffffff'
+}
 
 /** 全角数字（０-９）を半角に直してから数値化する */
 function toNumber(s: string): number {
@@ -55,10 +62,13 @@ function winnerOf(left: string, right: string): 'left' | 'right' | 'none' {
   return a > b ? 'left' : 'right'
 }
 
-/** 勝った側につける「勝」バッジ */
-function WinTag() {
+/** 勝った側につける「勝」バッジ（コート色で塗る） */
+function WinTag({ bg, color }: { bg: string; color: string }) {
   return (
-    <span className="mr-1 inline-block rounded bg-emerald-600 px-1 align-middle text-[15px] font-extrabold text-white">
+    <span
+      className="mr-1 inline-block rounded px-1 align-middle text-[15px] font-extrabold"
+      style={{ backgroundColor: bg, color }}
+    >
       勝
     </span>
   )
@@ -67,6 +77,12 @@ function WinTag() {
 export function CourtTable({ court, page, pages }: { court: Court; page: number; pages: number }) {
   const rows = pageSlice(court.rows, page, pages)
   const offset = page * Math.ceil(court.rows.length / pages)
+
+  // 勝ち側の色はコート色から作る（点数セルはコート色ベタ塗り＋自動文字色、
+  // クラスセルは少し濃いめの淡色）。負けはグレーで沈める
+  const winScoreBg = court.color
+  const winScoreText = contrastText(court.color)
+  const winClassBg = tint(court.color, 0.5)
 
   return (
     <table className="border-collapse text-[26px] leading-tight">
@@ -122,15 +138,19 @@ export function CourtTable({ court, page, pages }: { court: Court; page: number;
                   {r.code}
                 </td>
                 <td
-                  className={`${cellBase} py-1 ${leftWin ? 'text-emerald-800' : rightWin ? 'text-slate-400' : ''}`}
-                  style={{ backgroundColor: leftWin ? WIN_CLASS_BG : rightWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'mid') }}
+                  className={`${cellBase} py-1 ${rightWin ? 'text-slate-400' : ''}`}
+                  style={{ backgroundColor: leftWin ? winClassBg : rightWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'mid') }}
                 >
-                  {leftWin && <WinTag />}
+                  {leftWin && <WinTag bg={winScoreBg} color={winScoreText} />}
                   {r.left}
                 </td>
                 <td
-                  className={`${cellBase} relative min-w-[70px] py-1 ${leftWin ? 'font-black text-emerald-800' : rightWin ? 'text-slate-400' : ''}`}
-                  style={{ backgroundColor: leftWin ? WIN_SCORE_BG : rightWin ? LOSE_BG : scoreBg, ...currentBorder(isCurrent, 'mid') }}
+                  className={`${cellBase} relative min-w-[70px] py-1 ${leftWin ? 'font-black' : rightWin ? 'text-slate-400' : ''}`}
+                  style={{
+                    backgroundColor: leftWin ? winScoreBg : rightWin ? LOSE_BG : scoreBg,
+                    color: leftWin ? winScoreText : undefined,
+                    ...currentBorder(isCurrent, 'mid'),
+                  }}
                 >
                   {r.leftScore}
                 </td>
@@ -144,16 +164,20 @@ export function CourtTable({ court, page, pages }: { court: Court; page: number;
                   )}
                 </td>
                 <td
-                  className={`${cellBase} min-w-[70px] py-1 ${rightWin ? 'font-black text-emerald-800' : leftWin ? 'text-slate-400' : ''}`}
-                  style={{ backgroundColor: rightWin ? WIN_SCORE_BG : leftWin ? LOSE_BG : scoreBg, ...currentBorder(isCurrent, 'mid') }}
+                  className={`${cellBase} min-w-[70px] py-1 ${rightWin ? 'font-black' : leftWin ? 'text-slate-400' : ''}`}
+                  style={{
+                    backgroundColor: rightWin ? winScoreBg : leftWin ? LOSE_BG : scoreBg,
+                    color: rightWin ? winScoreText : undefined,
+                    ...currentBorder(isCurrent, 'mid'),
+                  }}
                 >
                   {r.rightScore}
                 </td>
                 <td
-                  className={`${cellBase} py-1 ${rightWin ? 'text-emerald-800' : leftWin ? 'text-slate-400' : ''}`}
-                  style={{ backgroundColor: rightWin ? WIN_CLASS_BG : leftWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'last') }}
+                  className={`${cellBase} py-1 ${leftWin ? 'text-slate-400' : ''}`}
+                  style={{ backgroundColor: rightWin ? winClassBg : leftWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'last') }}
                 >
-                  {rightWin && <WinTag />}
+                  {rightWin && <WinTag bg={winScoreBg} color={winScoreText} />}
                   {r.right}
                 </td>
               </tr>
