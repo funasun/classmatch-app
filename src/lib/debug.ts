@@ -23,5 +23,8 @@ export function subscribeDebug(listener: Listener): () => void {
 }
 
 export function isDebugMode(): boolean {
-  return new URLSearchParams(window.location.search).has('debug')
+  // HashRouter では「/#/?debug=1」の形になるため、search と hash 内の両方を見る
+  if (new URLSearchParams(window.location.search).has('debug')) return true
+  const hashQuery = window.location.hash.split('?')[1] ?? ''
+  return new URLSearchParams(hashQuery).has('debug')
 }

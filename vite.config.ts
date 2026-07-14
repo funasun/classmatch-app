@@ -6,6 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 // GitHub Pages のサブパス配信でも動くよう相対パスでビルドする
 export default defineConfig({
   base: './',
+  server: {
+    port: Number(process.env.PORT) || 5173,
+  },
   plugins: [
     react(),
     tailwindcss(),

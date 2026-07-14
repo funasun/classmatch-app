@@ -29,8 +29,7 @@ function fmt(d: Date): string {
 }
 
 interface ApiRow {
-  date?: string
-  time?: string
+  wbgt_date?: string
   wbgt_WO?: string | number
   [key: string]: unknown
 }
@@ -78,7 +77,7 @@ export async function fetchWbgt(): Promise<WbgtResult> {
           continue
         }
         const value = Number(latest.wbgt_WO)
-        const measuredAt = [latest.date, latest.time].filter(Boolean).join(' ')
+        const measuredAt = (latest.wbgt_date ?? '').replace(/:00$/, '')
         debugLog(`WBGT: ${source}/${label} から取得成功 (${value})`)
         return { value, measuredAt, source, dataType: label }
       } catch (e) {

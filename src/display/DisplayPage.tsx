@@ -21,8 +21,8 @@ export function SlideCanvas({ frame, state }: { frame: Frame; state: AppState })
 
 function CancelOverlay() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-red-600 animate-blink">
-      <div className="text-center text-[9vw] font-extrabold leading-tight text-white drop-shadow-lg">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-red-600">
+      <div className="animate-blink text-center text-[9vw] font-extrabold leading-tight text-white drop-shadow-lg">
         熱中症警戒のため
         <br />
         試合中止
