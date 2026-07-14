@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react'
 import type { AppState, Slide, SlideType } from '../types'
+import { SlideCanvas } from '../display/DisplayPage'
+import { pageCount } from '../display/frames'
+import { DEFAULT_RESULTS_NOTE } from '../data/initialState'
 
 type Update = (mutate: (draft: AppState) => void) => void
 
@@ -19,7 +22,7 @@ function newSlide(type: SlideType): Slide {
     case 'wbgt':
       return { ...base, type, title: '暑さ指数' }
     case 'matchResults':
-      return { ...base, type, title: '試合結果速報', courts: ['A', 'B'] }
+      return { ...base, type, title: '試合結果速報', courts: ['A', 'B'], note: DEFAULT_RESULTS_NOTE }
     case 'table':
       return {
         ...base,
@@ -31,6 +34,18 @@ function newSlide(type: SlideType): Slide {
     case 'notice':
       return { ...base, type, title: 'お知らせ', heading: 'お知らせ', body: '' }
   }
+}
+
+/** パワポ風のミニサムネイル（実際の表示と同じ描画を縮小） */
+function Thumbnail({ slide, state }: { slide: Slide; state: AppState }) {
+  return (
+    <div className="pointer-events-none relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-900">
+      <SlideCanvas
+        frame={{ slide, page: 0, pages: pageCount(slide, state), key: `thumb-${slide.id}` }}
+        state={state}
+      />
+    </div>
+  )
 }
 
 export function SlideList({
@@ -89,6 +104,7 @@ export function SlideList({
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {state.slides.map((slide, i) => {
           const info = TYPE_INFO[slide.type]
+          const isPinned = state.pinnedSlideId === slide.id
           return (
             <div
               key={slide.id}
@@ -110,8 +126,8 @@ export function SlideList({
               className={`mb-2 cursor-pointer rounded-xl border-2 bg-white p-2 shadow-sm transition ${
                 slide.id === selectedId ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'
               } ${dragOver === i ? 'border-t-4 border-t-blue-400' : ''} ${
-                slide.enabled ? '' : 'opacity-50'
-              }`}
+                slide.enabled || isPinned ? '' : 'opacity-50'
+              } ${isPinned ? 'border-yellow-400 ring-2 ring-yellow-200' : ''}`}
             >
               <div className="flex items-center gap-2">
                 <span className="cursor-grab text-slate-300" title="ドラッグで並べ替え">
@@ -121,9 +137,20 @@ export function SlideList({
                 <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${info.color}`}>
                   {info.icon} {info.label}
                 </span>
+                {isPinned && (
+                  <span className="rounded bg-yellow-400 px-1.5 py-0.5 text-xs font-bold text-slate-900">
+                    📌 固定表示中
+                  </span>
+                )}
               </div>
-              <div className="mt-1 truncate pl-6 font-bold text-slate-800">{slide.title}</div>
-              <div className="mt-1 flex items-center gap-2 pl-6" onClick={(e) => e.stopPropagation()}>
+
+              <div className="mt-1.5">
+                <Thumbnail slide={slide} state={state} />
+              </div>
+
+              <div className="mt-1 truncate font-bold text-slate-800">{slide.title}</div>
+
+              <div className="mt-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <label className="flex items-center gap-1 text-xs font-semibold text-slate-500">
                   <input
                     type="checkbox"
@@ -156,6 +183,7 @@ export function SlideList({
                   onClick={() => {
                     if (window.confirm(`「${slide.title}」を削除しますか？`)) {
                       update((d) => {
+                        if (d.pinnedSlideId === slide.id) d.pinnedSlideId = null
                         d.slides = d.slides.filter((s) => s.id !== slide.id)
                       })
                     }
@@ -165,6 +193,28 @@ export function SlideList({
                 >
                   🗑
                 </button>
+              </div>
+
+              <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                {isPinned ? (
+                  <button
+                    onClick={() => update((d) => (d.pinnedSlideId = null))}
+                    className="w-full rounded-lg bg-yellow-400 py-1.5 text-sm font-extrabold text-slate-900 hover:bg-yellow-300"
+                  >
+                    固定を解除してローテーションに戻す
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      update((d) => {
+                        d.pinnedSlideId = slide.id
+                      })
+                    }
+                    className="w-full rounded-lg border-2 border-blue-600 py-1.5 text-sm font-extrabold text-blue-700 hover:bg-blue-50"
+                  >
+                    📌 今すぐ表示（このスライドに固定）
+                  </button>
+                )}
               </div>
             </div>
           )

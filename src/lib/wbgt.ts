@@ -57,6 +57,20 @@ function pickLatest(body: { data?: ApiRow[] }): ApiRow | null {
   return rows.length > 0 ? rows[rows.length - 1] : null
 }
 
+let cache: { at: number; promise: Promise<WbgtResult> } | null = null
+
+/** 管理画面のサムネイル等で同時に何枚も表示しても、APIへの取得は1分に1回に抑える */
+export function fetchWbgtCached(): Promise<WbgtResult> {
+  const now = Date.now()
+  if (cache && now - cache.at < 60_000) return cache.promise
+  const promise = fetchWbgt()
+  cache = { at: now, promise }
+  promise.catch(() => {
+    if (cache?.promise === promise) cache = null
+  })
+  return promise
+}
+
 /** 環境省API直接 → Xserverプロキシ の順で試し、
  *  それぞれ実測値(data_type=1) → 実況推定値(data_type=0) にフォールバックする */
 export async function fetchWbgt(): Promise<WbgtResult> {

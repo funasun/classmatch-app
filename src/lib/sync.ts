@@ -1,5 +1,5 @@
 import type { AppState } from '../types'
-import { createInitialState } from '../data/initialState'
+import { createInitialState, normalizeState } from '../data/initialState'
 import { API_BASE, POLL_INTERVAL_MS } from './config'
 import { debugLog } from './debug'
 
@@ -37,11 +37,11 @@ class LocalBackend implements SyncBackend {
   private channel = new BroadcastChannel('classmatch-sync')
 
   subscribe(cb: (state: AppState) => void): () => void {
-    const current = readCache() ?? createInitialState()
+    const current = normalizeState(readCache() ?? createInitialState())
     writeCache(current)
     cb(current)
     debugLog('同期: ローカルモードで開始（VITE_API_BASE 未設定）')
-    const handler = (ev: MessageEvent) => cb(ev.data as AppState)
+    const handler = (ev: MessageEvent) => cb(normalizeState(ev.data as AppState))
     this.channel.addEventListener('message', handler)
     return () => this.channel.removeEventListener('message', handler)
   }
@@ -64,7 +64,7 @@ class RemoteBackend implements SyncBackend {
     const cached = readCache()
     if (cached) {
       this.lastVersion = cached.version
-      cb(cached)
+      cb(normalizeState(cached))
       debugLog(`同期: キャッシュから復元 (v${cached.version})`)
     }
 
@@ -82,7 +82,7 @@ class RemoteBackend implements SyncBackend {
           debugLog('同期: 通信が回復しました')
         }
         if (!body.unchanged) {
-          const state = body as AppState
+          const state = normalizeState(body as AppState)
           this.lastVersion = state.version
           writeCache(state)
           if (!stopped) cb(state)

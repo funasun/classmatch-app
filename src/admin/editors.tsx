@@ -15,16 +15,17 @@ type Update = (mutate: (draft: AppState) => void) => void
 /* ---------- 試合データ（コート別）の編集 ---------- */
 
 function courtToGrid(court: Court): string[][] {
-  return court.rows.map((r) => [r.code, r.left, r.leftScore, r.rightScore, r.right])
+  return court.rows.map((r) => [r.code, r.time ?? '', r.left, r.leftScore, r.rightScore, r.right])
 }
 
 function gridToRows(grid: string[][]) {
   return grid.map((r) => ({
     code: r[0] ?? '',
-    left: r[1] ?? '',
-    leftScore: r[2] ?? '',
-    rightScore: r[3] ?? '',
-    right: r[4] ?? '',
+    time: r[1] ?? '',
+    left: r[2] ?? '',
+    leftScore: r[3] ?? '',
+    rightScore: r[4] ?? '',
+    right: r[5] ?? '',
   }))
 }
 
@@ -81,8 +82,22 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
         </button>
       </div>
 
+      <div className="mb-3 flex items-center gap-2">
+        <span className="font-bold text-slate-600">コート名:</span>
+        <input
+          value={court.label}
+          onChange={(e) =>
+            update((d) => {
+              d.courts.find((c) => c.id === activeId)!.label = e.target.value
+            })
+          }
+          className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 font-bold"
+        />
+        <span className="text-xs text-slate-400">表示画面の見出しに使われます</span>
+      </div>
+
       <EditableGrid
-        columnLabels={['コード', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
+        columnLabels={['コード', '時刻', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
         data={courtToGrid(court)}
         highlightRow={court.current}
         onChange={(grid) =>
@@ -139,6 +154,18 @@ export function MatchResultsEditor({
         </div>
         <p className="mt-1 text-xs text-slate-400">2コートまでが見やすいです</p>
       </div>
+      <label className="mb-4 block font-bold text-slate-600">
+        タイトル帯の補足文（自由に変更できます）
+        <input
+          value={slide.note ?? ''}
+          onChange={(e) =>
+            update((d) => {
+              ;(d.slides.find((s) => s.id === slide.id) as MatchResultsSlide).note = e.target.value
+            })
+          }
+          className="mt-1 w-full max-w-xl rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+        />
+      </label>
       <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
       <CourtDataEditor state={state} update={update} />
     </div>

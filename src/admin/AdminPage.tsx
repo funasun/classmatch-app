@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useEditableState } from '../lib/useSyncedState'
 import { ADMIN_PASSCODE } from '../lib/config'
-import type { AlertStatus } from '../types'
+import type { AlertStatus, AppState } from '../types'
 import { SlideList } from './SlideList'
 import { SlideEditor } from './editors'
 import { SlideCanvas } from '../display/DisplayPage'
@@ -59,11 +59,73 @@ const ALERT_OPTIONS: { value: AlertStatus; label: string; active: string }[] = [
   { value: 'canceled', label: '中止', active: 'bg-red-600 text-white' },
 ]
 
+/** 注意バナー・中止画面の文言を編集するダイアログ */
+function TextsDialog({
+  state,
+  update,
+  onClose,
+}: {
+  state: AppState
+  update: (mutate: (draft: AppState) => void) => void
+  onClose: () => void
+}) {
+  const set = (key: keyof AppState['texts'], value: string) =>
+    update((d) => {
+      d.texts[key] = value
+    })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50" onClick={onClose}>
+      <div
+        className="w-[560px] rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-4 text-xl font-extrabold text-slate-800">表示画面の文言設定</h2>
+        <div className="flex flex-col gap-4">
+          <label className="font-bold text-slate-600">
+            「注意」のときの上部バナー
+            <input
+              value={state.texts.cautionBanner}
+              onChange={(e) => set('cautionBanner', e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+            />
+          </label>
+          <label className="font-bold text-slate-600">
+            「中止」のときの大見出し（改行できます）
+            <textarea
+              value={state.texts.cancelTitle}
+              onChange={(e) => set('cancelTitle', e.target.value)}
+              rows={2}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+            />
+          </label>
+          <label className="font-bold text-slate-600">
+            「中止」のときの補足文
+            <input
+              value={state.texts.cancelSub}
+              onChange={(e) => set('cancelSub', e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+            />
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-slate-400">編集はすぐに自動保存されます</p>
+        <button
+          onClick={onClose}
+          className="mt-4 w-full rounded-xl bg-slate-800 py-2.5 font-extrabold text-white hover:bg-slate-700"
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function AdminPage() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem(AUTH_KEY) === '1')
   const { state, update, saveError, mode } = useEditableState()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewPage, setPreviewPage] = useState(0)
+  const [showTexts, setShowTexts] = useState(false)
 
   useEffect(() => {
     if (state && !selectedId && state.slides.length > 0) {
@@ -83,6 +145,7 @@ export function AdminPage() {
   }
 
   const slide = state.slides.find((s) => s.id === selectedId) ?? null
+  const pinnedSlide = state.slides.find((s) => s.id === state.pinnedSlideId) ?? null
   const pages = slide ? pageCount(slide, state) : 1
   const safePage = Math.min(previewPage, pages - 1)
 
@@ -116,6 +179,13 @@ export function AdminPage() {
           ))}
         </div>
 
+        <button
+          onClick={() => setShowTexts(true)}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
+        >
+          文言設定
+        </button>
+
         <div className="ml-auto flex items-center gap-3 text-sm font-bold">
           {mode === 'local' && (
             <span className="rounded-full bg-purple-100 px-3 py-1 text-purple-700">
@@ -139,9 +209,22 @@ export function AdminPage() {
         </div>
       </header>
 
+      {/* 固定表示中の帯 */}
+      {pinnedSlide && (
+        <div className="flex items-center justify-center gap-4 bg-yellow-400 px-4 py-1.5 text-sm font-extrabold text-slate-900">
+          📌 全エルモに「{pinnedSlide.title}」を固定表示中（ローテーション停止）
+          <button
+            onClick={() => update((d) => (d.pinnedSlideId = null))}
+            className="rounded-lg bg-slate-900 px-3 py-1 text-white hover:bg-slate-700"
+          >
+            解除してローテーションに戻す
+          </button>
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1">
         {/* 左: スライド一覧 */}
-        <aside className="w-72 shrink-0 border-r border-slate-300 bg-slate-50">
+        <aside className="w-80 shrink-0 border-r border-slate-300 bg-slate-50">
           <SlideList
             state={state}
             update={update}
@@ -203,6 +286,10 @@ export function AdminPage() {
           )}
         </main>
       </div>
+
+      {showTexts && (
+        <TextsDialog state={state} update={update} onClose={() => setShowTexts(false)} />
+      )}
     </div>
   )
 }

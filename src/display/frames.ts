@@ -44,3 +44,16 @@ export function buildFrames(state: AppState): Frame[] {
   }
   return frames
 }
+
+/** 「今すぐ表示」用：指定スライドだけのコマ列（OFFのスライドでも表示できる） */
+export function buildPinnedFrames(state: AppState, slideId: string): Frame[] {
+  const slide = state.slides.find((s) => s.id === slideId)
+  if (!slide) return []
+  const pages = pageCount(slide, state)
+  return Array.from({ length: pages }, (_, page) => ({
+    slide,
+    page,
+    pages,
+    key: `${slide.id}-${page}`,
+  }))
+}

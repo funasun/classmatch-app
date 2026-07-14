@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
-import { buildFrames, type Frame } from './frames'
+import { buildFrames, buildPinnedFrames, type Frame } from './frames'
 import { SlideFrame } from './SlideFrame'
 import { FitScale } from '../components/FitScale'
 import { DebugOverlay } from './DebugOverlay'
@@ -19,32 +19,39 @@ export function SlideCanvas({ frame, state }: { frame: Frame; state: AppState })
   )
 }
 
-function CancelOverlay() {
+function CancelOverlay({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-red-600">
-      <div className="animate-blink text-center text-[9vw] font-extrabold leading-tight text-white drop-shadow-lg">
-        熱中症警戒のため
-        <br />
-        試合中止
+      <div className="animate-blink whitespace-pre-line text-center text-[9vw] font-extrabold leading-tight text-white drop-shadow-lg">
+        {title}
       </div>
-      <div className="text-center text-[3.5vw] font-bold text-white">
-        保健室の指示があるまでお待ちください
+      <div className="whitespace-pre-line text-center text-[3.5vw] font-bold text-white">
+        {sub}
       </div>
     </div>
   )
 }
 
-function CautionBanner() {
+function CautionBanner({ text }: { text: string }) {
   return (
     <div className="absolute inset-x-0 top-0 z-40 bg-yellow-400 py-2 text-center text-[2.2vw] font-extrabold text-slate-900">
-      ⚠ 熱中症注意 ― こまめに水分・塩分をとってください（保健室より）
+      {text}
     </div>
   )
 }
 
 export function DisplayPage() {
   const state = useSyncedState()
-  const frames = useMemo(() => (state ? buildFrames(state) : []), [state])
+  const allFrames = useMemo(() => (state ? buildFrames(state) : []), [state])
+
+  // 「今すぐ表示」で固定中なら、そのスライドのコマだけを表示する
+  const pinned = useMemo(() => {
+    if (!state?.pinnedSlideId) return null
+    const frames = buildPinnedFrames(state, state.pinnedSlideId)
+    return frames.length > 0 ? frames : null
+  }, [state])
+  const frames = pinned ?? allFrames
+
   const [index, setIndex] = useState(0)
   const [prevFrame, setPrevFrame] = useState<Frame | null>(null)
   const prevKeyRef = useRef<string>('')
@@ -53,7 +60,7 @@ export function DisplayPage() {
   const safeIndex = frames.length > 0 ? index % frames.length : 0
   const frame = frames[safeIndex] ?? null
 
-  // ローテーションタイマー（中止中は停止）
+  // ローテーションタイマー（中止中は停止。固定中はページ送りのみ）
   useEffect(() => {
     if (!frame || canceled || frames.length <= 1) return
     const timer = setTimeout(
@@ -62,6 +69,9 @@ export function DisplayPage() {
     )
     return () => clearTimeout(timer)
   }, [frame, frames.length, canceled])
+
+  // 固定表示の開始・解除時は先頭ページから
+  useEffect(() => setIndex(0), [state?.pinnedSlideId])
 
   // クロスフェード用に直前のコマを800msだけ残す
   useEffect(() => {
@@ -109,7 +119,31 @@ export function DisplayPage() {
                 {frame.page + 1}/{frame.pages}
               </span>
             )}
+            {pinned && (
+              <span className="ml-3 rounded bg-yellow-400 px-2 py-0.5 text-sm text-slate-900">
+                📌 固定表示中
+              </span>
+            )}
           </div>
+
+          {/* 右下: 全体の位置（スライド 3/6 ＋ ドット） */}
+          {!canceled && frames.length > 1 && (
+            <div className="absolute bottom-4 right-4 z-30 flex items-center gap-3 rounded-full bg-slate-900/70 px-4 py-1.5">
+              <div className="flex items-center gap-1.5">
+                {frames.map((f, i) => (
+                  <span
+                    key={f.key}
+                    className={`rounded-full ${
+                      i === safeIndex ? 'h-3 w-3 bg-sky-400' : 'h-2 w-2 bg-slate-500'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-lg font-bold text-white">
+                {safeIndex + 1} / {frames.length}
+              </span>
+            </div>
+          )}
 
           {/* 下部: 進捗バー */}
           {!canceled && (
@@ -128,8 +162,8 @@ export function DisplayPage() {
         </div>
       )}
 
-      {state.alert === 'caution' && <CautionBanner />}
-      {canceled && <CancelOverlay />}
+      {state.alert === 'caution' && <CautionBanner text={state.texts.cautionBanner} />}
+      {canceled && <CancelOverlay title={state.texts.cancelTitle} sub={state.texts.cancelSub} />}
       {isDebugMode() && <DebugOverlay />}
     </div>
   )

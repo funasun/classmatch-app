@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchWbgt, wbgtLevel, type WbgtResult } from '../../lib/wbgt'
+import { fetchWbgtCached, wbgtLevel, type WbgtResult } from '../../lib/wbgt'
 import { WBGT_INTERVAL_MS } from '../../lib/config'
 
 const SCALE = [
@@ -17,7 +17,7 @@ export function WbgtView() {
   useEffect(() => {
     let mounted = true
     const load = () =>
-      fetchWbgt()
+      fetchWbgtCached()
         .then((r) => {
           if (!mounted) return
           setResult(r)

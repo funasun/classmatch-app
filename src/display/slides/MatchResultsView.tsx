@@ -79,9 +79,7 @@ export function MatchResultsView({
     <div className="flex h-full w-full flex-col bg-white">
       <div className="flex items-center gap-6 bg-[#1e50a2] px-8 py-3 text-white">
         <span className="text-[40px] font-extrabold tracking-wider">試合結果速報</span>
-        <span className="text-[20px] opacity-90">
-          点数は前後半の合計点を表示。詳細は体育館ステージ横に掲示。
-        </span>
+        {slide.note && <span className="text-[20px] opacity-90">{slide.note}</span>}
       </div>
       <div className="min-h-0 flex-1 p-4">
         <FitScale>

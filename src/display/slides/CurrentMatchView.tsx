@@ -21,8 +21,13 @@ function CourtCard({ court }: { court: Court }) {
           <div className="text-[36px] font-bold text-slate-500">開始前</div>
         ) : (
           <>
-            <div className="rounded-full bg-slate-800 px-4 py-0.5 text-[20px] font-bold text-white">
-              {match.code}
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-slate-800 px-4 py-0.5 text-[20px] font-bold text-white">
+                {match.code}
+              </div>
+              {match.time && (
+                <div className="text-[20px] font-bold text-slate-500">{match.time}</div>
+              )}
             </div>
             <div className="flex items-baseline gap-4">
               <span className="text-[64px] font-extrabold text-slate-900">{match.left}</span>
@@ -32,6 +37,7 @@ function CourtCard({ court }: { court: Court }) {
             {next && (
               <div className="text-[20px] font-semibold text-slate-500">
                 次の試合: {next.code} {next.left} vs {next.right}
+                {next.time && `（${next.time}）`}
               </div>
             )}
           </>
