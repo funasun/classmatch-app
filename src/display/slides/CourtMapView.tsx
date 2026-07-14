@@ -3,14 +3,24 @@ import type { Court, CourtId } from '../../types'
 /** パンフレット「試合コートについて」の図を再現。
  *  各コート枠は state のコート情報（色・学年名）から描く */
 
-function CourtBox({ court, id }: { court: Court | undefined; id: CourtId }) {
+function CourtBox({
+  court,
+  id,
+  hideLabel = false,
+}: {
+  court: Court | undefined
+  id: CourtId
+  hideLabel?: boolean
+}) {
   return (
     <div
       className="flex min-w-[200px] flex-1 flex-col items-center justify-center rounded-2xl border-4 border-slate-800 px-4 py-5 text-white shadow"
       style={{ backgroundColor: court?.color ?? '#64748b' }}
     >
       <span className="text-[64px] font-black leading-none drop-shadow">{id}</span>
-      <span className="mt-2 text-[30px] font-extrabold">{court?.label ?? id}</span>
+      {!hideLabel && (
+        <span className="mt-2 text-[30px] font-extrabold">{court?.label ?? id}</span>
+      )}
     </div>
   )
 }
@@ -66,8 +76,8 @@ export function CourtMapView({ courts }: { courts: Court[] }) {
           <div className="flex flex-col">
             <ZoneLabel>体育館</ZoneLabel>
             <div className="grid h-[150px] grid-cols-2 gap-4">
-              {box('B')}
-              {box('A')}
+              <CourtBox id="B" court={byId('B')} hideLabel />
+              <CourtBox id="A" court={byId('A')} hideLabel />
             </div>
           </div>
         </div>
