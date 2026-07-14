@@ -244,6 +244,38 @@ export function AdminPage() {
         </div>
       </header>
 
+      {/* 流し文字（テロップ）設定バー */}
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
+        <label className="flex shrink-0 items-center gap-2 font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={state.ticker.enabled}
+            onChange={(e) =>
+              update((d) => {
+                d.ticker ??= { enabled: false, text: '' }
+                d.ticker.enabled = e.target.checked
+              })
+            }
+            className="h-5 w-5"
+          />
+          流し文字
+        </label>
+        <input
+          value={state.ticker.text}
+          onChange={(e) =>
+            update((d) => {
+              d.ticker ??= { enabled: false, text: '' }
+              d.ticker.text = e.target.value
+            })
+          }
+          placeholder="画面下に流すお知らせを入力（例: 3年女子 決勝は13時より体育館で行います）"
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-1.5 font-semibold focus:border-blue-500 focus:outline-none"
+        />
+        <span className="shrink-0 text-xs text-slate-400">
+          ONにすると全画面の下に右から左へ流れます
+        </span>
+      </div>
+
       {/* 固定表示中の帯 */}
       {pinnedSlide && (
         <div className="flex items-center justify-center gap-4 bg-yellow-400 px-4 py-1.5 text-sm font-extrabold text-slate-900">

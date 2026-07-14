@@ -95,6 +95,12 @@ export interface DisplayTexts {
   cancelSub: string      // 中止画面の補足
 }
 
+/** 流し文字（画面下を右から左へ流れるテロップ） */
+export interface Ticker {
+  enabled: boolean
+  text: string
+}
+
 export interface AppState {
   /** 保存のたびに +1。同期の差分判定に使う */
   version: number
@@ -103,6 +109,7 @@ export interface AppState {
   /** 「今すぐ表示」で固定中のスライドID。null なら通常ローテーション */
   pinnedSlideId: string | null
   texts: DisplayTexts
+  ticker: Ticker
   courts: Court[]
   slides: Slide[]
 }

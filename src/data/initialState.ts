@@ -145,6 +145,7 @@ export function createInitialState(): AppState {
     alert: 'normal',
     pinnedSlideId: null,
     texts: { ...defaultTexts },
+    ticker: { enabled: false, text: '' },
     courts: initialCourts,
     slides: initialSlides,
   }
@@ -154,6 +155,7 @@ export function createInitialState(): AppState {
 export function normalizeState(state: AppState): AppState {
   state.pinnedSlideId ??= null
   state.texts = { ...defaultTexts, ...(state.texts ?? {}) }
+  state.ticker ??= { enabled: false, text: '' }
   for (const slide of state.slides) {
     if (slide.type === 'matchResults') slide.note ??= DEFAULT_RESULTS_NOTE
     if (slide.type === 'wbgt') {

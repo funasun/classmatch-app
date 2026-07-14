@@ -28,6 +28,11 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+/* 流し文字（同じ文を2つ並べ、半分ぶん動かすと途切れずループ） */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 .animate-blink {
   animation: blink-alert 1.2s ease-in-out infinite;
 }

@@ -40,6 +40,25 @@ function CautionBanner({ text }: { text: string }) {
   )
 }
 
+/** 画面下を右から左へ流れるテロップ。同じ文を2つ並べて途切れずループさせる。
+ *  文字数に応じて時間を変え、読みやすい一定速度にする */
+function TickerBar({ text }: { text: string }) {
+  const seconds = Math.max(14, text.length * 0.7)
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-40 flex h-16 items-center overflow-hidden bg-slate-900/85">
+      <div
+        className="flex shrink-0 whitespace-nowrap will-change-transform"
+        style={{ animation: `marquee ${seconds}s linear infinite` }}
+      >
+        <span className="px-12 text-[2.6vw] font-extrabold tracking-wide text-white">{text}</span>
+        <span className="px-12 text-[2.6vw] font-extrabold tracking-wide text-white" aria-hidden>
+          {text}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function DisplayPage() {
   const state = useSyncedState()
   const allFrames = useMemo(() => (state ? buildFrames(state) : []), [state])
@@ -57,6 +76,7 @@ export function DisplayPage() {
   const prevKeyRef = useRef<string>('')
 
   const canceled = state?.alert === 'canceled'
+  const showTicker = !!state?.ticker?.enabled && !!state?.ticker?.text.trim() && !canceled
   const safeIndex = frames.length > 0 ? index % frames.length : 0
   const frame = frames[safeIndex] ?? null
 
@@ -150,7 +170,11 @@ export function DisplayPage() {
 
           {/* 右下: 全体の位置（スライド 3/6 ＋ ドット） */}
           {!canceled && frames.length > 1 && (
-            <div className="absolute bottom-4 right-4 z-30 flex items-center gap-3 rounded-full bg-slate-900/70 px-4 py-1.5">
+            <div
+              className={`absolute right-4 z-30 flex items-center gap-3 rounded-full bg-slate-900/70 px-4 py-1.5 ${
+                showTicker ? 'bottom-20' : 'bottom-4'
+              }`}
+            >
               <div className="flex items-center gap-1.5">
                 {frames.map((f, i) => (
                   <span
@@ -167,9 +191,13 @@ export function DisplayPage() {
             </div>
           )}
 
-          {/* 下部: 進捗バー */}
+          {/* 下部: 進捗バー（流し文字表示中はその上に出す） */}
           {!canceled && (
-            <div className="absolute inset-x-0 bottom-0 z-30 h-2 bg-slate-900/40">
+            <div
+              className={`absolute inset-x-0 z-30 h-2 bg-slate-900/40 ${
+                showTicker ? 'bottom-16' : 'bottom-0'
+              }`}
+            >
               <div
                 key={frame.key}
                 className="h-full bg-sky-400"
@@ -185,6 +213,7 @@ export function DisplayPage() {
       )}
 
       {state.alert === 'caution' && <CautionBanner text={state.texts.cautionBanner} />}
+      {showTicker && <TickerBar text={state.ticker.text} />}
       {canceled && <CancelOverlay title={state.texts.cancelTitle} sub={state.texts.cancelSub} />}
       {isDebugMode() && <DebugOverlay />}
     </div>
