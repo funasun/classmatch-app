@@ -40,11 +40,17 @@ const WIN_SCORE_BG = '#bbf7d0' // 勝った点数セル（緑）
 const WIN_CLASS_BG = '#dcfce7' // 勝ったクラスセル（薄緑）
 const LOSE_BG = '#eef2f6' // 負け側（薄いグレー）
 
+/** 全角数字（０-９）を半角に直してから数値化する */
+function toNumber(s: string): number {
+  const half = s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
+  return Number(half)
+}
+
 /** 両方に有効な点数があり差がついていれば勝った側を返す */
 function winnerOf(left: string, right: string): 'left' | 'right' | 'none' {
-  const a = Number(left)
-  const b = Number(right)
   if (left.trim() === '' || right.trim() === '') return 'none'
+  const a = toNumber(left)
+  const b = toNumber(right)
   if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return 'none'
   return a > b ? 'left' : 'right'
 }
