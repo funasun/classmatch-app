@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useEditableState } from '../lib/useSyncedState'
 import { backend } from '../lib/sync'
+import { createInitialState } from '../data/initialState'
 import type { AlertStatus, AppState } from '../types'
 import { SlideList } from './SlideList'
 import { SlideEditor } from './editors'
@@ -162,6 +163,26 @@ export function AdminPage() {
     update((d) => (d.alert = value))
   }
 
+  const resetToLatest = () => {
+    if (
+      !window.confirm(
+        '最新の試合順・スライド構成に初期化します。\n' +
+          '現在の得点・進行位置・スライドの編集内容はすべて消えて、既定の内容に戻ります。\n' +
+          '（本番の試合が始まる前に一度だけ実行してください）\n\nよろしいですか？',
+      )
+    ) {
+      return
+    }
+    update((d) => {
+      const fresh = createInitialState()
+      d.alert = fresh.alert
+      d.pinnedSlideId = fresh.pinnedSlideId
+      d.texts = fresh.texts
+      d.courts = fresh.courts
+      d.slides = fresh.slides
+    })
+  }
+
   return (
     <div className="flex h-screen flex-col bg-slate-100">
       {/* ヘッダー */}
@@ -190,6 +211,14 @@ export function AdminPage() {
           className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
         >
           文言設定
+        </button>
+
+        <button
+          onClick={resetToLatest}
+          className="rounded-lg border border-amber-400 px-3 py-1.5 text-sm font-bold text-amber-700 hover:bg-amber-50"
+          title="試合順やスライド構成を最新の既定内容に戻します（本番前に一度だけ）"
+        >
+          最新の試合順に初期化
         </button>
 
         <div className="ml-auto flex items-center gap-3 text-sm font-bold">
