@@ -1,7 +1,8 @@
 import { type CSSProperties, type ReactNode } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
-import type { AppState, Court, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
+import type { AppState, Court, LiveStreamSlide, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
 import { CourtTable } from '../display/slides/MatchResultsView'
+import { youtubeEmbedSrc } from '../display/slides/LiveStreamView'
 import { CourtMapView } from '../display/slides/CourtMapView'
 import { TableView } from '../display/slides/TableView'
 import { wbgtLevel } from '../lib/wbgt'
@@ -126,6 +127,8 @@ function MobileSection({ slide, state }: { slide: Slide; state: AppState }) {
       return <MobileWbgt slide={slide} />
     case 'notice':
       return <MobileNotice slide={slide} />
+    case 'liveStream':
+      return <MobileLive slide={slide} />
     case 'courtMap':
       return (
         <Card title={slide.title}>
@@ -275,6 +278,33 @@ function MobileWbgt({ slide }: { slide: WbgtSlide }) {
           ※この値は参考です。中止・中断の最終判断は保健室が行います。
         </p>
       </div>
+    </Card>
+  )
+}
+
+function MobileLive({ slide }: { slide: LiveStreamSlide }) {
+  const src = youtubeEmbedSrc(slide.url)
+  return (
+    <Card title={`📹 ${slide.title}`} color="#c00">
+      {src ? (
+        <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+          <iframe
+            key={src}
+            src={src}
+            title={slide.title}
+            className="h-full w-full"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="flex aspect-video w-full flex-col items-center justify-center rounded-lg bg-slate-900 text-center text-slate-300">
+          <span className="text-lg font-extrabold">配信の準備中です</span>
+        </div>
+      )}
+      {slide.caption?.trim() && (
+        <p className="mt-2 text-center text-sm font-bold text-slate-600">{slide.caption}</p>
+      )}
     </Card>
   )
 }

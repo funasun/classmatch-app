@@ -21,7 +21,14 @@ export interface Court {
   current: number
 }
 
-export type SlideType = 'current' | 'wbgt' | 'matchResults' | 'courtMap' | 'table' | 'notice'
+export type SlideType =
+  | 'current'
+  | 'wbgt'
+  | 'matchResults'
+  | 'courtMap'
+  | 'table'
+  | 'notice'
+  | 'liveStream'
 
 interface SlideBase {
   id: string
@@ -77,6 +84,15 @@ export interface NoticeSlide extends SlideBase {
   body: string
 }
 
+/** ライブ映像（YouTube Liveを埋め込んで会場の様子をスライドとして流す） */
+export interface LiveStreamSlide extends SlideBase {
+  type: 'liveStream'
+  /** YouTubeの配信URL（watch?v=／youtu.be／/live／/embed など何でも可） */
+  url: string
+  /** 映像の下に出す補足文（任意） */
+  caption?: string
+}
+
 export type Slide =
   | CurrentSlide
   | WbgtSlide
@@ -84,6 +100,7 @@ export type Slide =
   | CourtMapSlide
   | TableSlide
   | NoticeSlide
+  | LiveStreamSlide
 
 /** 試合状態：通常／注意／中止 */
 export type AlertStatus = 'normal' | 'caution' | 'canceled'

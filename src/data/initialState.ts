@@ -130,6 +130,15 @@ export const initialSlides: Slide[] = [
     heading: '本部からのお知らせ',
     body: 'こまめに水分補給をしましょう。',
   },
+  {
+    id: 'slide-live',
+    type: 'liveStream',
+    title: 'ライブ映像',
+    duration: 30,
+    enabled: false,
+    url: '',
+    caption: '',
+  },
 ]
 
 export const defaultTicker: Ticker = {
@@ -176,6 +185,22 @@ export function normalizeState(state: AppState): AppState {
       ]
       slide.measuredAt ??= ''
     }
+    if (slide.type === 'liveStream') {
+      slide.url ??= ''
+      slide.caption ??= ''
+    }
+  }
+  // 旧データにライブ映像スライドが無ければ末尾に補う（初期はOFF）
+  if (!state.slides.some((s) => s.type === 'liveStream')) {
+    state.slides.push({
+      id: 'slide-live',
+      type: 'liveStream',
+      title: 'ライブ映像',
+      duration: 30,
+      enabled: false,
+      url: '',
+      caption: '',
+    })
   }
   return state
 }

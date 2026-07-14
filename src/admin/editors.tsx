@@ -3,6 +3,7 @@ import type {
   AppState,
   Court,
   CourtId,
+  LiveStreamSlide,
   MatchResultsSlide,
   NoticeSlide,
   Slide,
@@ -10,6 +11,7 @@ import type {
   WbgtSlide,
 } from '../types'
 import { EditableGrid } from './EditableGrid'
+import { youtubeEmbedSrc } from '../display/slides/LiveStreamView'
 
 type Update = (mutate: (draft: AppState) => void) => void
 
@@ -428,6 +430,80 @@ export function WbgtEditor({
   )
 }
 
+/* ---------- ライブ映像スライド：YouTube URLの入力 ---------- */
+
+export function LiveStreamEditor({
+  slide,
+  update,
+}: {
+  slide: LiveStreamSlide
+  update: Update
+}) {
+  const mutateSlide = (fn: (s: LiveStreamSlide) => void) =>
+    update((d) => fn(d.slides.find((s) => s.id === slide.id) as LiveStreamSlide))
+
+  const trimmed = slide.url.trim()
+  const embed = youtubeEmbedSrc(slide.url)
+  const status =
+    trimmed === ''
+      ? { text: '未入力（このスライドは何も表示しません）', cls: 'text-slate-400' }
+      : embed
+        ? { text: '✓ このURLを埋め込めます', cls: 'text-green-600' }
+        : { text: '⚠ YouTubeのURLとして認識できません', cls: 'text-red-600' }
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <p className="text-sm text-slate-500">
+        会場の様子をYouTubeライブで配信し、そのURLをここに貼ると、スライドとして映像を流せます。
+        配信端末（ギガスクール端末など）でYouTubeライブを開始し、その視聴URLを貼り付けてください。
+        観戦端末では音声はミュートで自動再生されます。
+      </p>
+
+      <label className="font-bold text-slate-600">
+        YouTubeライブのURL
+        <input
+          value={slide.url}
+          onChange={(e) => mutateSlide((s) => (s.url = e.target.value))}
+          placeholder="例: https://www.youtube.com/watch?v=xxxxxxxxxxx"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+        />
+        <span className={`mt-1 block text-sm font-bold ${status.cls}`}>{status.text}</span>
+      </label>
+
+      <label className="font-bold text-slate-600">
+        映像の下に出す補足文（任意）
+        <input
+          value={slide.caption ?? ''}
+          onChange={(e) => mutateSlide((s) => (s.caption = e.target.value))}
+          placeholder="例: A・Bコート（体育館）の様子"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+        />
+      </label>
+
+      {embed && (
+        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 p-2">
+          <div className="mb-1 text-xs font-bold text-slate-500">プレビュー</div>
+          <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+            <iframe
+              key={embed}
+              src={embed}
+              title="ライブ映像プレビュー"
+              className="h-full w-full"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
+
+      <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+        ※ 学校のフィルタリングでYouTubeが見られない端末では映像が表示されないことがあります。
+        表示秒数は長め（30秒以上）にしておくと切り替わりで途切れにくくなります。
+      </p>
+    </div>
+  )
+}
+
 /* ---------- スライド種類ごとのエディタ振り分け ---------- */
 
 export function SlideEditor({
@@ -466,5 +542,7 @@ export function SlideEditor({
       return <TableEditor slide={slide} update={update} />
     case 'notice':
       return <NoticeEditor slide={slide} update={update} />
+    case 'liveStream':
+      return <LiveStreamEditor slide={slide} update={update} />
   }
 }

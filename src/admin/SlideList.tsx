@@ -13,6 +13,7 @@ const TYPE_INFO: Record<SlideType, { label: string; icon: string; color: string 
   courtMap: { label: 'コート配置図', icon: '🗺️', color: 'bg-teal-100 text-teal-800' },
   table: { label: '表', icon: '📋', color: 'bg-purple-100 text-purple-800' },
   notice: { label: 'お知らせ', icon: '📢', color: 'bg-amber-100 text-amber-800' },
+  liveStream: { label: 'ライブ映像', icon: '📹', color: 'bg-red-100 text-red-800' },
 }
 
 function newSlide(type: SlideType): Slide {
@@ -45,6 +46,8 @@ function newSlide(type: SlideType): Slide {
       }
     case 'notice':
       return { ...base, type, title: 'お知らせ', heading: 'お知らせ', body: '' }
+    case 'liveStream':
+      return { ...base, type, title: 'ライブ映像', duration: 30, url: '', caption: '' }
   }
 }
 
