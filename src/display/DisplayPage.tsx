@@ -73,7 +73,10 @@ function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
         style={{ paddingLeft: '100%', animation: `marquee ${seconds}s linear ${iteration}` }}
         onAnimationEnd={onEnd}
       >
-        <span className="text-[2.6vw] font-extrabold tracking-wide" style={textStyle}>
+        <span
+          className="font-extrabold tracking-wide"
+          style={{ fontSize: 'clamp(30px, 2.6vw, 56px)', ...textStyle }}
+        >
           {ticker.text}
         </span>
       </div>
