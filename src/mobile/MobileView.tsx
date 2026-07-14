@@ -37,19 +37,22 @@ export function MobileView() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-10">
-      <header className="sticky top-0 z-30 bg-[#1e50a2] px-4 py-2.5 text-center text-lg font-extrabold tracking-wide text-white shadow">
-        夏季クラスマッチ 2026
-      </header>
+      {/* ヘッダー・流し文字・注意バナーは上部に固定し、スクロールしても常に見えるようにする */}
+      <div className="sticky top-0 z-30 shadow">
+        <header className="bg-[#1e50a2] px-4 py-2.5 text-center text-lg font-extrabold tracking-wide text-white">
+          夏季クラスマッチ 2026
+        </header>
 
-      {state.ticker.enabled && state.ticker.text.trim() && (
-        <MobileTicker ticker={state.ticker} />
-      )}
+        {state.ticker.enabled && state.ticker.text.trim() && (
+          <MobileTicker ticker={state.ticker} />
+        )}
 
-      {state.alert === 'caution' && (
-        <div className="bg-yellow-400 px-3 py-2 text-center text-sm font-extrabold text-slate-900">
-          {state.texts.cautionBanner}
-        </div>
-      )}
+        {state.alert === 'caution' && (
+          <div className="bg-yellow-400 px-3 py-2 text-center text-sm font-extrabold text-slate-900">
+            {state.texts.cautionBanner}
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col gap-5 p-3">
         {enabled.map((slide) => (
