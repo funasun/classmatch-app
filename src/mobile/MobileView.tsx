@@ -6,6 +6,7 @@ import { CourtMapView } from '../display/slides/CourtMapView'
 import { TableView } from '../display/slides/TableView'
 import { wbgtLevel } from '../lib/wbgt'
 import { FitWidth } from './FitWidth'
+import { TickerMarquee } from '../components/TickerMarquee'
 
 /** スマホ縦画面（観戦者向け）。表示画面と同じ同期データを、
  *  16:9のまま縮めず縦に積み直して読みやすくする */
@@ -69,7 +70,7 @@ export function MobileView() {
 }
 
 function MobileTicker({ ticker }: { ticker: Ticker }) {
-  const seconds = (36 + ticker.text.length) * 0.36
+  const unitSeconds = (ticker.text.length + 2) * 0.36
   const textStyle: CSSProperties = ticker.blink
     ? ({
         '--blink-a': ticker.color,
@@ -82,14 +83,13 @@ function MobileTicker({ ticker }: { ticker: Ticker }) {
       className="flex h-12 items-center overflow-hidden"
       style={{ backgroundColor: ticker.bg }}
     >
-      <div
-        className="whitespace-nowrap will-change-transform"
-        style={{ paddingLeft: '100%', animation: `marquee ${seconds}s linear infinite` }}
-      >
-        <span className="text-2xl font-extrabold tracking-wide" style={textStyle}>
-          {ticker.text}
-        </span>
-      </div>
+      <TickerMarquee
+        text={ticker.text}
+        unitSeconds={unitSeconds}
+        iteration="infinite"
+        textStyle={textStyle}
+        textClassName="text-2xl font-extrabold tracking-wide"
+      />
     </div>
   )
 }

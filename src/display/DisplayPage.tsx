@@ -3,6 +3,7 @@ import { useSyncedState } from '../lib/useSyncedState'
 import { buildFrames, buildPinnedFrames, type Frame } from './frames'
 import { SlideFrame } from './SlideFrame'
 import { FitScale } from '../components/FitScale'
+import { TickerMarquee } from '../components/TickerMarquee'
 import { DebugOverlay } from './DebugOverlay'
 import { isDebugMode } from '../lib/debug'
 import type { AppState, Ticker } from '../types'
@@ -40,20 +41,19 @@ function CautionBanner({ text }: { text: string }) {
   )
 }
 
-// 1文字あたりの秒数（小さいほど速い）。実際の移動距離は「画面幅＋文字幅」なので、
-// 画面を横切るぶん（CROSS 文字ぶん）を足して、速さが一定になるようにする
-const CROSS = 36
+// 1文字あたりの秒数（小さいほど速い）。1ユニット（文字数＋末尾2文字の空き）ぶんを
+// この時間で流すので、文字数によらず一定速度になる
 const SPEED_FACTOR: Record<Ticker['speed'], number> = {
   slow: 0.62,
   normal: 0.36,
   fast: 0.2,
 }
 
-/** 画面下を右端の外から入って左端の外へ抜けるテロップ。
- *  文字数に応じて時間を変え、読みやすい一定速度にする。
- *  流す回数が有限なら、その回数（＝端から端まで通過した回数）ぶんで onEnd で消える */
+/** 画面下を右から左へ、途切れずに流れるテロップ。
+ *  末尾から2文字ぶん空けて次が続くシームレスなループ。
+ *  流す回数が有限なら、その回数ぶん流し終えたら onEnd で消える */
 function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
-  const seconds = (CROSS + ticker.text.length) * SPEED_FACTOR[ticker.speed]
+  const unitSeconds = (ticker.text.length + 2) * SPEED_FACTOR[ticker.speed]
   const iteration = ticker.repeat > 0 ? ticker.repeat : 'infinite'
   const textStyle: CSSProperties = ticker.blink
     ? ({
@@ -67,19 +67,14 @@ function TickerBar({ ticker, onEnd }: { ticker: Ticker; onEnd: () => void }) {
       className="absolute inset-x-0 bottom-0 z-40 flex h-16 items-center overflow-hidden"
       style={{ backgroundColor: ticker.bg }}
     >
-      {/* paddingLeft:100% で右端の外から出発させる */}
-      <div
-        className="whitespace-nowrap will-change-transform"
-        style={{ paddingLeft: '100%', animation: `marquee ${seconds}s linear ${iteration}` }}
-        onAnimationEnd={onEnd}
-      >
-        <span
-          className="font-extrabold tracking-wide"
-          style={{ fontSize: 'clamp(30px, 2.6vw, 56px)', ...textStyle }}
-        >
-          {ticker.text}
-        </span>
-      </div>
+      <TickerMarquee
+        text={ticker.text}
+        unitSeconds={unitSeconds}
+        iteration={iteration}
+        onEnd={onEnd}
+        textStyle={textStyle}
+        textClassName="font-extrabold tracking-wide text-[clamp(30px,2.6vw,56px)]"
+      />
     </div>
   )
 }

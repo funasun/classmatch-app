@@ -28,10 +28,9 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
-/* 流し文字（右端の外から入って、左端の外へ抜ける） */
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
+/* 流し文字（1ユニット＝テキスト＋2文字ぶん だけ動かしてシームレスにループ） */
+@keyframes ticker-scroll {
+  to { transform: translateX(var(--dist)); }
 }
 /* 2色点滅（前半は色A、後半は色B。ほぼ瞬時に切り替わる） */
 @keyframes ticker-blink {
