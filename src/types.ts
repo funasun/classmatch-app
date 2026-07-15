@@ -84,9 +84,13 @@ export interface NoticeSlide extends SlideBase {
   body: string
 }
 
-/** ライブ映像（YouTube Liveを埋め込んで会場の様子をスライドとして流す） */
+/** ライブ映像（会場の様子をスライドとして流す）
+ *  - youtube: YouTube Liveを埋め込む
+ *  - inApp:   配信端末のカメラをアプリ内で直接中継（WebRTC・外部サービス不要） */
 export interface LiveStreamSlide extends SlideBase {
   type: 'liveStream'
+  /** 配信方法（未指定なら youtube。旧データ互換） */
+  source?: 'youtube' | 'inApp'
   /** YouTubeの配信URL（watch?v=／youtu.be／/live／/embed など何でも可） */
   url: string
   /** 映像の下に出す補足文（任意） */

@@ -2,7 +2,7 @@ import { type CSSProperties, type ReactNode } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
 import type { AppState, Court, LiveStreamSlide, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
 import { CourtTable } from '../display/slides/MatchResultsView'
-import { youtubeEmbedSrc } from '../display/slides/LiveStreamView'
+import { youtubeEmbedSrc, InAppLiveVideo } from '../display/slides/LiveStreamView'
 import { CourtMapView } from '../display/slides/CourtMapView'
 import { TableView } from '../display/slides/TableView'
 import { wbgtLevel } from '../lib/wbgt'
@@ -283,10 +283,15 @@ function MobileWbgt({ slide }: { slide: WbgtSlide }) {
 }
 
 function MobileLive({ slide }: { slide: LiveStreamSlide }) {
+  const isInApp = slide.source === 'inApp'
   const src = youtubeEmbedSrc(slide.url)
   return (
     <Card title={`📹 ${slide.title}`} color="#c00">
-      {src ? (
+      {isInApp ? (
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
+          <InAppLiveVideo />
+        </div>
+      ) : src ? (
         <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
           <iframe
             key={src}

@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react'
 import type { LiveStreamSlide } from '../../types'
+import { useLiveViewer } from '../../lib/live'
 
 /** YouTubeのいろいろな形式のURLから 11桁の動画IDを取り出す。
  *  取れなければ null（チャンネルのライブなど、ID不明のときは live_stream 埋め込みで代替） */
@@ -58,7 +60,39 @@ export function youtubeEmbedSrc(raw: string): string | null {
   return null
 }
 
+/** 配信端末のカメラ映像をアプリ内で受信して表示する（WebRTC） */
+export function InAppLiveVideo({ muted = true }: { muted?: boolean }) {
+  const { stream, status } = useLiveViewer()
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (el && el.srcObject !== stream) el.srcObject = stream
+  }, [stream])
+
+  if (stream) {
+    return (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={muted}
+        className="absolute inset-0 h-full w-full bg-black object-contain"
+      />
+    )
+  }
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-slate-300">
+      <span className="text-4xl font-extrabold">
+        {status === 'connecting' ? '接続中…' : '配信を待っています'}
+      </span>
+      <span className="text-xl text-slate-400">配信端末で「配信ページ」を開いて開始してください</span>
+    </div>
+  )
+}
+
 export function LiveStreamView({ slide }: { slide: LiveStreamSlide }) {
+  const isInApp = slide.source === 'inApp'
   const src = youtubeEmbedSrc(slide.url)
 
   return (
@@ -71,7 +105,9 @@ export function LiveStreamView({ slide }: { slide: LiveStreamSlide }) {
         <span className="text-[30px] font-extrabold">{slide.title}</span>
       </div>
       <div className="relative min-h-0 flex-1">
-        {src ? (
+        {isInApp ? (
+          <InAppLiveVideo />
+        ) : src ? (
           <iframe
             key={src}
             src={src}

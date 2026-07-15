@@ -3,6 +3,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom'
 import { DisplayPage } from './display/DisplayPage'
 import { AdminPage } from './admin/AdminPage'
 import { MobileView } from './mobile/MobileView'
+import { BroadcastPage } from './broadcast/BroadcastPage'
 import { useIsMobile } from './lib/useIsMobile'
 
 type ViewMode = 'portrait' | 'landscape'
@@ -47,6 +48,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DisplayRoute />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/broadcast" element={<BroadcastPage />} />
       </Routes>
     </HashRouter>
   )

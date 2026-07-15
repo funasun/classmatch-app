@@ -12,3 +12,10 @@ export const FIREBASE_ENABLED = FIREBASE_API_KEY !== '' && FIREBASE_PROJECT_ID !
 
 /** ローカルモードでの管理画面の合言葉（Firebase モードでは Firebase のパスワードを使う） */
 export const ADMIN_PASSCODE: string = import.meta.env.VITE_ADMIN_PASSCODE ?? 'classmatch'
+
+/** ライブ映像（アプリ内配信）の中継サーバー(TURN)。
+ *  学校ネットワークが端末どうしの直接通信(P2P)を遮断している場合のみ必要。
+ *  未設定でも同一Wi-Fi・多くの環境では直接つながる（STUNのみで動作）。 */
+export const TURN_URL: string = import.meta.env.VITE_TURN_URL ?? ''
+export const TURN_USERNAME: string = import.meta.env.VITE_TURN_USERNAME ?? ''
+export const TURN_CREDENTIAL: string = import.meta.env.VITE_TURN_CREDENTIAL ?? ''

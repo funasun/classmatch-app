@@ -136,6 +136,7 @@ export const initialSlides: Slide[] = [
     title: 'ライブ映像',
     duration: 30,
     enabled: false,
+    source: 'youtube',
     url: '',
     caption: '',
   },
@@ -186,6 +187,7 @@ export function normalizeState(state: AppState): AppState {
       slide.measuredAt ??= ''
     }
     if (slide.type === 'liveStream') {
+      slide.source ??= 'youtube'
       slide.url ??= ''
       slide.caption ??= ''
     }
@@ -198,6 +200,7 @@ export function normalizeState(state: AppState): AppState {
       title: 'ライブ映像',
       duration: 30,
       enabled: false,
+      source: 'youtube',
       url: '',
       caption: '',
     })

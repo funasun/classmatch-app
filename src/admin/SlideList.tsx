@@ -47,7 +47,7 @@ function newSlide(type: SlideType): Slide {
     case 'notice':
       return { ...base, type, title: 'お知らせ', heading: 'お知らせ', body: '' }
     case 'liveStream':
-      return { ...base, type, title: 'ライブ映像', duration: 30, url: '', caption: '' }
+      return { ...base, type, title: 'ライブ映像', duration: 30, source: 'youtube', url: '', caption: '' }
   }
 }
 

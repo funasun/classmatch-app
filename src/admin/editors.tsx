@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type {
   AppState,
   Court,
@@ -432,6 +432,33 @@ export function WbgtEditor({
 
 /* ---------- ライブ映像スライド：YouTube URLの入力 ---------- */
 
+/** 配信ページ（この端末以外＝配信端末で開くURL）を組み立てる */
+function broadcastUrl(): string {
+  const base = import.meta.env.BASE_URL || '/'
+  return `${window.location.origin}${base}#/broadcast`
+}
+
+function SourceTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 rounded-lg border-2 px-3 py-2 text-sm font-bold ${
+        active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function LiveStreamEditor({
   slide,
   update,
@@ -441,6 +468,20 @@ export function LiveStreamEditor({
 }) {
   const mutateSlide = (fn: (s: LiveStreamSlide) => void) =>
     update((d) => fn(d.slides.find((s) => s.id === slide.id) as LiveStreamSlide))
+
+  const source = slide.source ?? 'youtube'
+  const [copied, setCopied] = useState(false)
+  const url = broadcastUrl()
+
+  const copy = () => {
+    navigator.clipboard?.writeText(url).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      },
+      () => {},
+    )
+  }
 
   const trimmed = slide.url.trim()
   const embed = youtubeEmbedSrc(slide.url)
@@ -453,22 +494,94 @@ export function LiveStreamEditor({
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <p className="text-sm text-slate-500">
-        会場の様子をYouTubeライブで配信し、そのURLをここに貼ると、スライドとして映像を流せます。
-        配信端末（ギガスクール端末など）でYouTubeライブを開始し、その視聴URLを貼り付けてください。
-        観戦端末では音声はミュートで自動再生されます。
-      </p>
+      <div>
+        <div className="mb-1 font-bold text-slate-600">配信方法</div>
+        <div className="flex gap-2">
+          <SourceTab active={source === 'inApp'} onClick={() => mutateSlide((s) => (s.source = 'inApp'))}>
+            📷 アプリで配信（カメラ直結・おすすめ）
+          </SourceTab>
+          <SourceTab active={source === 'youtube'} onClick={() => mutateSlide((s) => (s.source = 'youtube'))}>
+            ▶ YouTubeライブ
+          </SourceTab>
+        </div>
+      </div>
 
-      <label className="font-bold text-slate-600">
-        YouTubeライブのURL
-        <input
-          value={slide.url}
-          onChange={(e) => mutateSlide((s) => (s.url = e.target.value))}
-          placeholder="例: https://www.youtube.com/watch?v=xxxxxxxxxxx"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
-        />
-        <span className={`mt-1 block text-sm font-bold ${status.cls}`}>{status.text}</span>
-      </label>
+      {source === 'inApp' ? (
+        <>
+          <p className="text-sm text-slate-500">
+            配信端末（ギガスクール端末など）のカメラ映像を、外部サービスなしでそのまま観戦端末へ届けます。
+            アカウント資格や登録者数は不要です。
+          </p>
+          <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-3">
+            <div className="mb-1 font-bold text-slate-700">配信のはじめかた</div>
+            <ol className="ml-4 list-decimal text-sm text-slate-600">
+              <li>配信端末で下のURL（配信ページ）を開く</li>
+              <li>「カメラを起動」→「配信を開始」を押す</li>
+              <li>このスライドをON（または「今すぐ表示」）にする</li>
+            </ol>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                readOnly
+                value={url}
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
+              />
+              <button
+                onClick={copy}
+                className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
+              >
+                {copied ? 'コピー済' : 'コピー'}
+              </button>
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="shrink-0 rounded-lg border border-blue-600 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+              >
+                開く
+              </a>
+            </div>
+          </div>
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+            ※ 学校ネットワークが端末どうしの直接通信を遮断していると映像が届かないことがあります。
+            本番前に、配信端末＋観戦端末1台で一度テストしてください。うまくいかない場合は中継サーバー(TURN)の設定が必要です。
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-slate-500">
+            配信端末でYouTubeライブを開始し、その視聴URLをここに貼ると、スライドとして映像を流せます。
+            観戦端末では音声ミュートで自動再生されます。
+          </p>
+          <label className="font-bold text-slate-600">
+            YouTubeライブのURL
+            <input
+              value={slide.url}
+              onChange={(e) => mutateSlide((s) => (s.url = e.target.value))}
+              placeholder="例: https://www.youtube.com/watch?v=xxxxxxxxxxx"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+            />
+            <span className={`mt-1 block text-sm font-bold ${status.cls}`}>{status.text}</span>
+          </label>
+          {embed && (
+            <div className="rounded-xl border-2 border-slate-200 bg-slate-50 p-2">
+              <div className="mb-1 text-xs font-bold text-slate-500">プレビュー</div>
+              <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                <iframe
+                  key={embed}
+                  src={embed}
+                  title="ライブ映像プレビュー"
+                  className="h-full w-full"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+            ※ ライブ配信にはアカウントの資格（電話番号認証・登録者数など）が必要で、学校アカウントでは使えないことがあります。
+          </p>
+        </>
+      )}
 
       <label className="font-bold text-slate-600">
         映像の下に出す補足文（任意）
@@ -479,27 +592,6 @@ export function LiveStreamEditor({
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
         />
       </label>
-
-      {embed && (
-        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 p-2">
-          <div className="mb-1 text-xs font-bold text-slate-500">プレビュー</div>
-          <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
-            <iframe
-              key={embed}
-              src={embed}
-              title="ライブ映像プレビュー"
-              className="h-full w-full"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      )}
-
-      <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
-        ※ 学校のフィルタリングでYouTubeが見られない端末では映像が表示されないことがあります。
-        表示秒数は長め（30秒以上）にしておくと切り替わりで途切れにくくなります。
-      </p>
     </div>
   )
 }
