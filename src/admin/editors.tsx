@@ -30,6 +30,15 @@ function courtToGrid(court: Court): string[][] {
   ])
 }
 
+/** '9:05~9:20' のような文字列中の「H:MM」全部に delta 分を足す。
+ *  時刻の形をしていない文字（'抽選で決定'など）はそのまま */
+function shiftTime(time: string, delta: number): string {
+  return time.replace(/(\d{1,2}):(\d{2})/g, (_, h: string, m: string) => {
+    const t = (((+h * 60 + +m + delta) % 1440) + 1440) % 1440
+    return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+  })
+}
+
 function gridToRows(grid: string[][]) {
   return grid.map((r) => ({
     code: r[0] ?? '',
@@ -99,6 +108,7 @@ function AllCourtsPanel({ state, update }: { state: AppState; update: Update }) 
 
 export function CourtDataEditor({ state, update }: { state: AppState; update: Update }) {
   const [activeId, setActiveId] = useState<CourtId>('A')
+  const [shiftAll, setShiftAll] = useState(true)
   const court = state.courts.find((c) => c.id === activeId)!
   const currentMatch = court.rows[court.current]
 
@@ -106,6 +116,17 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
     update((d) => {
       const c = d.courts.find((c) => c.id === activeId)!
       c.current = Math.max(-1, Math.min(c.rows.length, value))
+    })
+
+  /** 進行の遅れ対応：今の試合から後ろの時刻をまとめて delta 分ずらす */
+  const shift = (delta: number) =>
+    update((d) => {
+      const targets = shiftAll ? d.courts : d.courts.filter((c) => c.id === activeId)
+      for (const c of targets) {
+        for (let i = Math.max(c.current, 0); i < c.rows.length; i++) {
+          c.rows[i].time = shiftTime(c.rows[i].time ?? '', delta)
+        }
+      }
     })
 
   return (
@@ -151,6 +172,32 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
         >
           次の試合へ →
         </button>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border-2 border-slate-200 bg-white p-3">
+        <span className="font-bold text-slate-600">
+          ⏰ 進行が遅れたら — 今の試合から後ろの時刻をまとめてずらす:
+        </span>
+        {[-10, -5, 5, 10].map((d) => (
+          <button
+            key={d}
+            onClick={() => shift(d)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-bold hover:bg-slate-100"
+          >
+            {d > 0 ? `+${d}分` : `${d}分`}
+          </button>
+        ))}
+        <label className="flex cursor-pointer items-center gap-1.5 text-sm font-bold text-slate-600">
+          <input
+            type="checkbox"
+            checked={shiftAll}
+            onChange={(e) => setShiftAll(e.target.checked)}
+          />
+          全コートまとめて
+        </label>
+        <span className="w-full text-xs text-slate-400">
+          1試合だけ直したいときは、下の表の「時刻」のマスを直接書き換えられます
+        </span>
       </div>
 
       <div className="mb-3 flex items-center gap-2">
