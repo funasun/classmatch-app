@@ -65,10 +65,11 @@ class LocalBackend implements SyncBackend {
 class FirebaseBackend implements SyncBackend {
   readonly mode = 'remote' as const
   private failureLogged = false
-  /** この端末を識別するID。自分の保存が折り返してきた（echo）ものを見分けるのに使う */
-  private origin = Math.random().toString(36).slice(2) + Date.now().toString(36)
-  /** この端末が保存した回数。古い自分のechoで新しい編集が巻き戻るのを防ぐ */
-  private seq = 0
+  /** 直近に自分が保存した JSON 文字列。最新の折り返し（echo）を見分ける */
+  private lastSentJson: string | null = null
+  /** 自分が保存した JSON の履歴。古い自分の echo を見分けて無視するのに使う。
+   *  json には updatedAt が含まれ毎回一意なので、他端末の保存と衝突しない。 */
+  private sentJson = new Set<string>()
 
   private async docRef() {
     const [{ doc }, { getFirebase }] = await Promise.all([
@@ -104,13 +105,15 @@ class FirebaseBackend implements SyncBackend {
             if (!cached) cb(normalizeState(createInitialState()))
             return
           }
-          // 自分が保存した折り返し（echo）で、しかも既により新しい編集を保存済みなら無視する。
-          // 他端末の更新（origin 不一致）は常に受け入れるので、二台で編集しても確実に反映される。
-          if (data.origin === this.origin && (Number(data.seq) || 0) < this.seq) {
+          const json = data.json as string
+          // 自分が保存した「古い」折り返し（echo）なら無視する（新しい編集の巻き戻り防止）。
+          // 自分が出したものでない保存（＝他端末の更新）は常に受け入れるので、
+          // 二台で編集しても確実に反映される（後勝ち）。
+          if (json !== this.lastSentJson && this.sentJson.has(json)) {
             return
           }
           try {
-            const state = normalizeState(JSON.parse(data.json as string) as AppState)
+            const state = normalizeState(JSON.parse(json) as AppState)
             writeCache(state)
             cb(state)
             debugLog(`同期: 更新を受信 (v${state.version})`)
@@ -142,13 +145,19 @@ class FirebaseBackend implements SyncBackend {
         this.docRef(),
       ])
       await getFirebase().auth.authStateReady()
-      const seq = ++this.seq
+      const json = JSON.stringify(state)
+      // 保存前に「自分が出した JSON」として記録しておく。折り返しで戻ってきたときに
+      // 自分の echo だと判別でき、古い echo なら無視して新しい編集を守れる。
+      this.lastSentJson = json
+      this.sentJson.add(json)
+      // 覚えすぎないよう、直近ぶんだけ保持する
+      if (this.sentJson.size > 40) {
+        this.sentJson = new Set([...this.sentJson].slice(-20))
+      }
       await setDoc(ref, {
         version: state.version,
         updatedAt: state.updatedAt,
-        origin: this.origin,
-        seq,
-        json: JSON.stringify(state),
+        json,
       })
       writeCache(state)
       debugLog(`同期: 保存成功 (v${state.version})`)
