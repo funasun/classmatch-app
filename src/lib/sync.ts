@@ -154,11 +154,19 @@ class FirebaseBackend implements SyncBackend {
       if (this.sentJson.size > 40) {
         this.sentJson = new Set([...this.sentJson].slice(-20))
       }
-      await setDoc(ref, {
-        version: state.version,
-        updatedAt: state.updatedAt,
-        json,
-      })
+      // 通信が遮断されていると setDoc は成功も失敗もせずに保留のままになり、
+      // 「保存できている」と誤解する。一定時間で打ち切って失敗として扱い、
+      // 画面に「保存できていません」を出して気づけるようにする。
+      await Promise.race([
+        setDoc(ref, {
+          version: state.version,
+          updatedAt: state.updatedAt,
+          json,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('保存タイムアウト（サーバへ届いていません）')), 12000),
+        ),
+      ])
       writeCache(state)
       debugLog(`同期: 保存成功 (v${state.version})`)
       return true
