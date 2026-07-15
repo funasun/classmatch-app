@@ -65,6 +65,10 @@ class LocalBackend implements SyncBackend {
 class FirebaseBackend implements SyncBackend {
   readonly mode = 'remote' as const
   private failureLogged = false
+  /** この端末を識別するID。自分の保存が折り返してきた（echo）ものを見分けるのに使う */
+  private origin = Math.random().toString(36).slice(2) + Date.now().toString(36)
+  /** この端末が保存した回数。古い自分のechoで新しい編集が巻き戻るのを防ぐ */
+  private seq = 0
 
   private async docRef() {
     const [{ doc }, { getFirebase }] = await Promise.all([
@@ -100,6 +104,11 @@ class FirebaseBackend implements SyncBackend {
             if (!cached) cb(normalizeState(createInitialState()))
             return
           }
+          // 自分が保存した折り返し（echo）で、しかも既により新しい編集を保存済みなら無視する。
+          // 他端末の更新（origin 不一致）は常に受け入れるので、二台で編集しても確実に反映される。
+          if (data.origin === this.origin && (Number(data.seq) || 0) < this.seq) {
+            return
+          }
           try {
             const state = normalizeState(JSON.parse(data.json as string) as AppState)
             writeCache(state)
@@ -133,9 +142,12 @@ class FirebaseBackend implements SyncBackend {
         this.docRef(),
       ])
       await getFirebase().auth.authStateReady()
+      const seq = ++this.seq
       await setDoc(ref, {
         version: state.version,
         updatedAt: state.updatedAt,
+        origin: this.origin,
+        seq,
         json: JSON.stringify(state),
       })
       writeCache(state)

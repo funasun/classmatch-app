@@ -20,22 +20,13 @@ export function useSyncedState(): AppState | null {
 }
 
 /** 管理画面用：購読＋自動保存つき更新。
- *  自分の保存が折り返しのポーリングで巻き戻らないよう version で比較する */
+ *  他端末の更新は常に受け入れる（後勝ち）。自分の保存が古い折り返しで
+ *  巻き戻る問題は backend 側で origin+seq により抑止している。 */
 export function useEditableState() {
   const [state, setState] = useState<AppState | null>(null)
   const [saveError, setSaveError] = useState(false)
-  const localVersion = useRef(0)
 
-  useEffect(
-    () =>
-      backend.subscribe((incoming) => {
-        if (incoming.version >= localVersion.current) {
-          localVersion.current = incoming.version
-          setState(incoming)
-        }
-      }),
-    [],
-  )
+  useEffect(() => backend.subscribe((incoming) => setState(incoming)), [])
 
   const update = useCallback((mutate: (draft: AppState) => void) => {
     setState((prev) => {
@@ -44,7 +35,6 @@ export function useEditableState() {
       mutate(next)
       next.version = prev.version + 1
       next.updatedAt = new Date().toISOString()
-      localVersion.current = next.version
       backend.save(next).then((ok) => setSaveError(!ok))
       return next
     })
