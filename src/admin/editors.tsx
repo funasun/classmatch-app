@@ -12,6 +12,7 @@ import type {
 } from '../types'
 import { EditableGrid } from './EditableGrid'
 import { youtubeEmbedSrc } from '../display/slides/LiveStreamView'
+import { resolveTeam } from '../lib/results'
 
 type Update = (mutate: (draft: AppState) => void) => void
 
@@ -73,7 +74,7 @@ function AllCourtsPanel({ state, update }: { state: AppState; update: Update }) 
                   ? '開始前'
                   : c.current >= c.rows.length
                     ? '全試合終了'
-                    : `${m?.code} ${m?.left} vs ${m?.right}`}
+                    : `${m?.code} ${resolveTeam(m?.left ?? '', state.courts)} vs ${resolveTeam(m?.right ?? '', state.courts)}`}
               </span>
               <button
                 onClick={() => advance(c.id, -1)}
@@ -134,7 +135,8 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
           <span className="font-bold text-slate-500">全試合終了</span>
         ) : (
           <span className="rounded-lg bg-yellow-200 px-3 py-1 text-lg font-extrabold">
-            {currentMatch?.code} {currentMatch?.left} vs {currentMatch?.right}
+            {currentMatch?.code} {resolveTeam(currentMatch?.left ?? '', state.courts)} vs{' '}
+            {resolveTeam(currentMatch?.right ?? '', state.courts)}
           </span>
         )}
         <button

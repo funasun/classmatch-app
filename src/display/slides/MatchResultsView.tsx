@@ -3,6 +3,7 @@ import type { Court, MatchResultsSlide } from '../../types'
 import { pageSlice } from '../frames'
 import { FitScale } from '../../components/FitScale'
 import { isRecentlyChanged } from '../../lib/changes'
+import { resolveTeam, winnerOf } from '../../lib/results'
 
 /** 16進カラーに透明度を掛けた淡色を作る */
 function tint(hex: string, alpha: number): string {
@@ -47,21 +48,6 @@ function contrastText(hex: string): string {
   return lum > 0.6 ? '#0f172a' : '#ffffff'
 }
 
-/** 全角数字（０-９）を半角に直してから数値化する */
-function toNumber(s: string): number {
-  const half = s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
-  return Number(half)
-}
-
-/** 両方に有効な点数があり差がついていれば勝った側を返す */
-function winnerOf(left: string, right: string): 'left' | 'right' | 'none' {
-  if (left.trim() === '' || right.trim() === '') return 'none'
-  const a = toNumber(left)
-  const b = toNumber(right)
-  if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return 'none'
-  return a > b ? 'left' : 'right'
-}
-
 /** 勝った側につける「勝」バッジ（コート色で塗る） */
 function WinTag({ bg, color }: { bg: string; color: string }) {
   return (
@@ -74,8 +60,20 @@ function WinTag({ bg, color }: { bg: string; color: string }) {
   )
 }
 
-export function CourtTable({ court, page, pages }: { court: Court; page: number; pages: number }) {
+export function CourtTable({
+  court,
+  page,
+  pages,
+  courts,
+}: {
+  court: Court
+  page: number
+  pages: number
+  /** 「◯-◯勝者/敗者」を解決するための全コート（省略時は解決しない） */
+  courts?: Court[]
+}) {
   const rows = pageSlice(court.rows, page, pages)
+  const all = courts ?? [court]
   const offset = page * Math.ceil(court.rows.length / pages)
 
   // 勝ち側の色はコート色から作る（点数セルはコート色ベタ塗り＋自動文字色、
@@ -142,7 +140,7 @@ export function CourtTable({ court, page, pages }: { court: Court; page: number;
                   style={{ backgroundColor: leftWin ? winClassBg : rightWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'mid') }}
                 >
                   {leftWin && <WinTag bg={winScoreBg} color={winScoreText} />}
-                  {r.left}
+                  {resolveTeam(r.left, all)}
                 </td>
                 <td
                   className={`${cellBase} relative min-w-[70px] py-1 ${leftWin ? 'font-black' : rightWin ? 'text-slate-400' : ''}`}
@@ -178,7 +176,7 @@ export function CourtTable({ court, page, pages }: { court: Court; page: number;
                   style={{ backgroundColor: rightWin ? winClassBg : leftWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'last') }}
                 >
                   {rightWin && <WinTag bg={winScoreBg} color={winScoreText} />}
-                  {r.right}
+                  {resolveTeam(r.right, all)}
                 </td>
               </tr>
             </Fragment>
@@ -211,7 +209,7 @@ export function MatchResultsView({
         <FitScale>
           <div className="flex items-start gap-10">
             {shown.map((c) => (
-              <CourtTable key={c.id} court={c} page={page} pages={pages} />
+              <CourtTable key={c.id} court={c} page={page} pages={pages} courts={courts} />
             ))}
           </div>
         </FitScale>

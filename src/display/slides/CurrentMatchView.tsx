@@ -1,6 +1,7 @@
 import type { Court } from '../../types'
+import { resolveTeam } from '../../lib/results'
 
-function CourtCard({ court }: { court: Court }) {
+function CourtCard({ court, courts }: { court: Court; courts: Court[] }) {
   const match = court.rows[court.current]
   const next = court.rows[court.current + 1]
   const finished = court.current >= court.rows.length
@@ -30,13 +31,13 @@ function CourtCard({ court }: { court: Court }) {
               )}
             </div>
             <div className="flex items-baseline gap-4">
-              <span className="text-[64px] font-extrabold text-slate-900">{match.left}</span>
+              <span className="text-[64px] font-extrabold text-slate-900">{resolveTeam(match.left, courts)}</span>
               <span className="text-[28px] font-bold text-slate-400">vs</span>
-              <span className="text-[64px] font-extrabold text-slate-900">{match.right}</span>
+              <span className="text-[64px] font-extrabold text-slate-900">{resolveTeam(match.right, courts)}</span>
             </div>
             {next && (
               <div className="text-[20px] font-semibold text-slate-500">
-                次の試合: {next.code} {next.left} vs {next.right}
+                次の試合: {next.code} {resolveTeam(next.left, courts)} vs {resolveTeam(next.right, courts)}
                 {next.time && `（${next.time}）`}
               </div>
             )}
@@ -55,7 +56,7 @@ export function CurrentMatchView({ courts }: { courts: Court[] }) {
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-5 p-6">
         {courts.map((c) => (
-          <CourtCard key={c.id} court={c} />
+          <CourtCard key={c.id} court={c} courts={courts} />
         ))}
       </div>
     </div>

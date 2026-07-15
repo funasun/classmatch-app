@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
 import type { AppState, Court, LiveStreamSlide, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
 import { CourtTable } from '../display/slides/MatchResultsView'
+import { resolveTeam } from '../lib/results'
 import { youtubeEmbedSrc, InAppLiveVideo } from '../display/slides/LiveStreamView'
 import { CourtMapView } from '../display/slides/CourtMapView'
 import { TableView } from '../display/slides/TableView'
@@ -116,7 +117,7 @@ function MobileSection({ slide, state }: { slide: Slide; state: AppState }) {
         <Card title="現在の試合">
           <div className="flex flex-col gap-3">
             {state.courts.map((c) => (
-              <MobileCourtCard key={c.id} court={c} />
+              <MobileCourtCard key={c.id} court={c} courts={state.courts} />
             ))}
           </div>
         </Card>
@@ -152,7 +153,7 @@ function MobileSection({ slide, state }: { slide: Slide; state: AppState }) {
   }
 }
 
-function MobileCourtCard({ court }: { court: Court }) {
+function MobileCourtCard({ court, courts }: { court: Court; courts: Court[] }) {
   const match = court.rows[court.current]
   const next = court.rows[court.current + 1]
   const finished = court.current >= court.rows.length
@@ -182,13 +183,13 @@ function MobileCourtCard({ court }: { court: Court }) {
               )}
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-extrabold text-slate-900">{match.left}</span>
+              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.left, courts)}</span>
               <span className="text-base font-bold text-slate-400">vs</span>
-              <span className="text-4xl font-extrabold text-slate-900">{match.right}</span>
+              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.right, courts)}</span>
             </div>
             {next && (
               <div className="text-center text-xs font-semibold text-slate-500">
-                次: {next.code} {next.left} vs {next.right}
+                次: {next.code} {resolveTeam(next.left, courts)} vs {resolveTeam(next.right, courts)}
                 {next.time && `（${next.time}）`}
               </div>
             )}
@@ -206,7 +207,7 @@ function MobileResults({ slide, courts }: { slide: MatchResultsSlide; courts: Co
       <div className="flex flex-col gap-4">
         {shown.map((c) => (
           <FitWidth key={c.id}>
-            <CourtTable court={c} page={0} pages={1} />
+            <CourtTable court={c} page={0} pages={1} courts={courts} />
           </FitWidth>
         ))}
         {slide.note && <p className="text-xs text-slate-500">{slide.note}</p>}
