@@ -30,10 +30,14 @@ function currentBorder(
   return s
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  予選リーグ: '#305496',
-  順位決定トーナメント: '#548235',
-  決勝: '#bf8f00',
+/** 区分名から帯の色を決める。決勝＝金、準決勝/決定戦＝緑、予選＝青。
+ *  「準決勝」は文字列に「決勝」を含むので、決勝より先に判定する。 */
+function stageColor(stage: string): string {
+  if (stage.includes('予選')) return '#305496'
+  if (stage.includes('準決')) return '#548235'
+  if (stage.includes('決勝')) return '#bf8f00'
+  if (stage.includes('決定戦')) return '#548235'
+  return '#475569'
 }
 
 // 負け側は共通で薄いグレー。勝ち側はコート色に合わせて自動で決める
@@ -119,7 +123,7 @@ export function CourtTable({
                   <td
                     colSpan={7}
                     className="border-2 border-slate-900 py-0.5 text-center text-[19px] font-extrabold tracking-widest text-white"
-                    style={{ backgroundColor: STAGE_COLORS[r.stage!] ?? '#475569' }}
+                    style={{ backgroundColor: stageColor(r.stage!) }}
                   >
                     {r.stage}
                   </td>
