@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type {
   AppState,
   Court,
@@ -7,6 +7,7 @@ import type {
   MatchResultsSlide,
   NoticeSlide,
   Slide,
+  StandingsSlide,
   TableSlide,
   WbgtSlide,
 } from '../types'
@@ -22,6 +23,7 @@ function courtToGrid(court: Court): string[][] {
   return court.rows.map((r) => [
     r.code,
     r.stage ?? '',
+    r.league ?? '',
     r.time ?? '',
     r.left,
     r.leftScore,
@@ -43,12 +45,57 @@ function gridToRows(grid: string[][]) {
   return grid.map((r) => ({
     code: r[0] ?? '',
     stage: r[1] ?? '',
-    time: r[2] ?? '',
-    left: r[3] ?? '',
-    leftScore: r[4] ?? '',
-    rightScore: r[5] ?? '',
-    right: r[6] ?? '',
+    league: r[2] ?? '',
+    time: r[3] ?? '',
+    left: r[4] ?? '',
+    leftScore: r[5] ?? '',
+    rightScore: r[6] ?? '',
+    right: r[7] ?? '',
   }))
+}
+
+const COURT_COLORS = [
+  '#f4600c', '#29abe2', '#ffc000', '#22b04c', '#f79646', '#e75bc0',
+  '#7030a0', '#00b0f0', '#c00000', '#92d050', '#0070c0', '#ff66cc',
+]
+
+/** 未使用のコート記号（A, B, C…）を返す */
+function nextCourtId(courts: Court[]): string {
+  for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+    if (!courts.some((c) => c.id === ch)) return ch
+  }
+  return `コート${courts.length + 1}`
+}
+
+/** コート記号の編集欄。空・重複は確定させない（確定は Enter か欄を離れたとき） */
+function CourtIdEditor({
+  id,
+  taken,
+  onCommit,
+}: {
+  id: string
+  taken: string[]
+  onCommit: (next: string) => void
+}) {
+  const [draft, setDraft] = useState(id)
+  useEffect(() => setDraft(id), [id])
+  const commit = () => {
+    const next = draft.trim()
+    if (next === '' || next === id || taken.includes(next)) {
+      setDraft(id)
+      return
+    }
+    onCommit(next)
+  }
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      className="w-16 rounded-lg border border-slate-300 px-2 py-1.5 text-center font-extrabold"
+    />
+  )
 }
 
 /** 全コートの進行をワンタッチで進めるパネル。コートごとに進捗が違ってもOK */
@@ -83,7 +130,7 @@ function AllCourtsPanel({ state, update }: { state: AppState; update: Update }) 
                   ? '開始前'
                   : c.current >= c.rows.length
                     ? '全試合終了'
-                    : `${m?.code} ${resolveTeam(m?.left ?? '', state.courts)} vs ${resolveTeam(m?.right ?? '', state.courts)}`}
+                    : `${m?.code} ${resolveTeam(m?.left ?? '', state.courts, c)} vs ${resolveTeam(m?.right ?? '', state.courts, c)}`}
               </span>
               <button
                 onClick={() => advance(c.id, -1)}
@@ -107,21 +154,61 @@ function AllCourtsPanel({ state, update }: { state: AppState; update: Update }) 
 }
 
 export function CourtDataEditor({ state, update }: { state: AppState; update: Update }) {
-  const [activeId, setActiveId] = useState<CourtId>('A')
+  const [activeId, setActiveId] = useState<CourtId>(state.courts[0]?.id ?? 'A')
   const [shiftAll, setShiftAll] = useState(true)
-  const court = state.courts.find((c) => c.id === activeId)!
+  // 選択中のコートが消えていたら先頭のコートに切り替える
+  const court = state.courts.find((c) => c.id === activeId) ?? state.courts[0]
+
+  const addCourt = () => {
+    const id = nextCourtId(state.courts)
+    update((d) => {
+      d.courts.push({
+        id,
+        label: '',
+        color: COURT_COLORS[d.courts.length % COURT_COLORS.length],
+        sport: '',
+        place: '',
+        rows: [],
+        current: 0,
+      })
+    })
+    setActiveId(id)
+  }
+
+  if (!court) {
+    return (
+      <div>
+        <AllCourtsPanel state={state} update={update} />
+        <p className="mb-3 text-slate-500">
+          コートがありません。「コートを追加」して、試合データを入力（Excelから貼り付け）してください。
+        </p>
+        <button
+          onClick={addCourt}
+          className="rounded-lg bg-blue-600 px-4 py-2 font-extrabold text-white hover:bg-blue-700"
+        >
+          ＋ コートを追加
+        </button>
+      </div>
+    )
+  }
+
+  const id = court.id
   const currentMatch = court.rows[court.current]
+  const mutateCourt = (fn: (c: Court) => void) =>
+    update((d) => {
+      const c = d.courts.find((c) => c.id === id)
+      if (c) fn(c)
+    })
 
   const setCurrent = (value: number) =>
-    update((d) => {
-      const c = d.courts.find((c) => c.id === activeId)!
+    mutateCourt((c) => {
       c.current = Math.max(-1, Math.min(c.rows.length, value))
     })
 
   /** 進行の遅れ対応：今の試合から後ろの時刻をまとめて delta 分ずらす */
   const shift = (delta: number) =>
     update((d) => {
-      const targets = shiftAll ? d.courts : d.courts.filter((c) => c.id === activeId)
+      const targets = shiftAll ? d.courts : d.courts.filter((c) => c.id === id)
       for (const c of targets) {
         for (let i = Math.max(c.current, 0); i < c.rows.length; i++) {
           c.rows[i].time = shiftTime(c.rows[i].time ?? '', delta)
@@ -129,23 +216,68 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
       }
     })
 
+  /** コート記号を変える。スライドの表示コート指定も追従させる（試合コードは変えない） */
+  const renameCourt = (next: string) => {
+    update((d) => {
+      const c = d.courts.find((c) => c.id === id)
+      if (!c) return
+      c.id = next
+      for (const s of d.slides) {
+        if (s.type === 'matchResults' || s.type === 'standings') {
+          s.courts = s.courts.map((x) => (x === id ? next : x))
+        }
+      }
+    })
+    setActiveId(next)
+  }
+
+  const removeCourt = () => {
+    if (!window.confirm(`${id}コート（${court.label}）を試合データごと削除します。よろしいですか？`)) {
+      return
+    }
+    const remaining = state.courts.filter((c) => c.id !== id)
+    update((d) => {
+      d.courts = d.courts.filter((c) => c.id !== id)
+      for (const s of d.slides) {
+        if (s.type === 'matchResults' || s.type === 'standings') {
+          s.courts = s.courts.filter((x) => x !== id)
+        }
+      }
+    })
+    setActiveId(remaining[0]?.id ?? '')
+  }
+
+  /** 試合コードを「記号-連番」で上から付け直す */
+  const renumber = () =>
+    mutateCourt((c) => {
+      c.rows.forEach((r, i) => {
+        r.code = `${c.id}-${i + 1}`
+      })
+    })
+
   return (
     <div>
       <AllCourtsPanel state={state} update={update} />
 
-      <div className="mb-3 flex gap-1">
+      <div className="mb-3 flex flex-wrap items-end gap-1">
         {state.courts.map((c) => (
           <button
             key={c.id}
             onClick={() => setActiveId(c.id)}
             className={`rounded-t-lg px-4 py-2 font-bold text-white transition ${
-              c.id === activeId ? '' : 'opacity-40 hover:opacity-70'
+              c.id === id ? '' : 'opacity-40 hover:opacity-70'
             }`}
             style={{ backgroundColor: c.color }}
           >
-            {c.id}（{c.label}）
+            {c.id}（{c.label || '名称未設定'}）
           </button>
         ))}
+        <button
+          onClick={addCourt}
+          className="rounded-t-lg border-2 border-dashed border-slate-300 px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"
+        >
+          ＋ コート追加
+        </button>
       </div>
 
       <div className="mb-4 flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-slate-50 p-3">
@@ -156,8 +288,8 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
           <span className="font-bold text-slate-500">全試合終了</span>
         ) : (
           <span className="rounded-lg bg-yellow-200 px-3 py-1 text-lg font-extrabold">
-            {currentMatch?.code} {resolveTeam(currentMatch?.left ?? '', state.courts)} vs{' '}
-            {resolveTeam(currentMatch?.right ?? '', state.courts)}
+            {currentMatch?.code} {resolveTeam(currentMatch?.left ?? '', state.courts, court)} vs{' '}
+            {resolveTeam(currentMatch?.right ?? '', state.courts, court)}
           </span>
         )}
         <button
@@ -200,30 +332,142 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
         </span>
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className="font-bold text-slate-600">コート名:</span>
-        <input
-          value={court.label}
-          onChange={(e) =>
-            update((d) => {
-              d.courts.find((c) => c.id === activeId)!.label = e.target.value
-            })
-          }
-          className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 font-bold"
-        />
-        <span className="text-xs text-slate-400">表示画面の見出しに使われます</span>
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border-2 border-slate-200 bg-white p-3 text-sm">
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          記号
+          <CourtIdEditor id={id} taken={state.courts.map((c) => c.id)} onCommit={renameCourt} />
+        </label>
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          コート名
+          <input
+            value={court.label}
+            onChange={(e) => mutateCourt((c) => (c.label = e.target.value))}
+            placeholder="例: 3年女子"
+            className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 font-bold"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          競技
+          <input
+            value={court.sport ?? ''}
+            onChange={(e) => mutateCourt((c) => (c.sport = e.target.value))}
+            placeholder="例: バスケットボール（空欄可）"
+            className="w-56 rounded-lg border border-slate-300 px-3 py-1.5 font-bold"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          場所
+          <input
+            value={court.place ?? ''}
+            onChange={(e) => mutateCourt((c) => (c.place = e.target.value))}
+            placeholder="例: 体育館"
+            className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 font-bold"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          色
+          <input
+            type="color"
+            value={court.color}
+            onChange={(e) => mutateCourt((c) => (c.color = e.target.value))}
+            className="h-8 w-10 cursor-pointer rounded border border-slate-300"
+          />
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5 font-bold text-slate-600">
+          <input
+            type="checkbox"
+            checked={!!court.lowerWins}
+            onChange={(e) => mutateCourt((c) => (c.lowerWins = e.target.checked))}
+          />
+          点数が少ない方が勝ち（タイム競技など）
+        </label>
+        <button
+          onClick={removeCourt}
+          className="ml-auto rounded-lg border border-red-300 px-3 py-1.5 font-bold text-red-600 hover:bg-red-50"
+        >
+          このコートを削除
+        </button>
+        <span className="w-full text-xs text-slate-400">
+          コート名・競技は表示画面の見出しに、場所はコート配置図のまとまりに使われます
+        </span>
+      </div>
+
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <span className="font-bold text-slate-600">試合の一覧</span>
+        <button
+          onClick={renumber}
+          title="コードを上から順に 記号-1, 記号-2… に付け直します"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          コードを連番で付け直す
+        </button>
+        <span className="text-xs text-slate-400">
+          区分に「リーグ」を含む行は順位表に集計されます（リーグ列に X/Y などを入れると、その単位で集計）。
+          トーナメントは「A-8勝者」「Xリーグ1位」のように書くと結果確定後に自動でクラス名になります
+        </span>
       </div>
 
       <EditableGrid
-        columnLabels={['コード', '区分', '時刻', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
+        columnLabels={['コード', '区分', 'リーグ', '時刻', 'クラス(左)', '点数(左)', '点数(右)', 'クラス(右)']}
         data={courtToGrid(court)}
         highlightRow={court.current}
-        onChange={(grid) =>
-          update((d) => {
-            d.courts.find((c) => c.id === activeId)!.rows = gridToRows(grid)
-          })
-        }
+        onChange={(grid) => mutateCourt((c) => (c.rows = gridToRows(grid)))}
       />
+    </div>
+  )
+}
+
+/* ---------- リーグ順位表スライド：表示コート選択 ---------- */
+
+export function StandingsEditor({
+  slide,
+  state,
+  update,
+}: {
+  slide: StandingsSlide
+  state: AppState
+  update: Update
+}) {
+  const toggleCourt = (id: CourtId) =>
+    update((d) => {
+      const s = d.slides.find((s) => s.id === slide.id) as StandingsSlide
+      s.courts = s.courts.includes(id)
+        ? s.courts.filter((c) => c !== id)
+        : [...s.courts, id].sort()
+    })
+
+  return (
+    <div>
+      <p className="mb-3 text-sm text-slate-500">
+        リーグ戦（区分に「リーグ」を含む行、またはリーグ列に名前を入れた行）の点数から、
+        勝敗・得失点差を自動で集計して順位を出します。全試合が終わって順位が確定すると、
+        「Xリーグ1位」のような対戦相手表記も自動でクラス名に置き換わります（同率＝抽選が必要なときはそのまま）。
+      </p>
+      <div className="mb-4">
+        <div className="mb-1 font-bold text-slate-600">このスライドに表示するコート</div>
+        <div className="flex flex-wrap gap-2">
+          {state.courts.map((c) => (
+            <label
+              key={c.id}
+              className={`flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 font-bold ${
+                slide.courts.includes(c.id)
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-200 bg-white text-slate-400'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={slide.courts.includes(c.id)}
+                onChange={() => toggleCourt(c.id)}
+              />
+              {c.id}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-slate-400">2コートまでが見やすいです</p>
+      </div>
+      <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
+      <CourtDataEditor state={state} update={update} />
     </div>
   )
 }
@@ -670,11 +914,13 @@ export function SlideEditor({
       return <WbgtEditor slide={slide} update={update} />
     case 'matchResults':
       return <MatchResultsEditor slide={slide} state={state} update={update} />
+    case 'standings':
+      return <StandingsEditor slide={slide} state={state} update={update} />
     case 'courtMap':
       return (
         <p className="text-slate-500">
-          パンフレットの「試合コートについて」の図をもとに、どのコート（A〜F）がどの学年かを表示します。
-          コート名と色は「試合データ」の各コート設定がそのまま使われるため、ここでの編集項目はありません。
+          各コートの「場所」（体育館・グラウンドなど）ごとにまとめて、どのコートがどの学年・競技かを表示します。
+          記号・コート名・色・競技・場所は「試合データ」の各コート設定がそのまま使われるため、ここでの編集項目はありません。
           <br />
           右のプレビューで実際の表示を確認できます。
         </p>

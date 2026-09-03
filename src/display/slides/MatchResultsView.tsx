@@ -3,7 +3,7 @@ import type { Court, MatchResultsSlide } from '../../types'
 import { pageSlice } from '../frames'
 import { FitScale } from '../../components/FitScale'
 import { isRecentlyChanged } from '../../lib/changes'
-import { resolveTeam, winnerOf } from '../../lib/results'
+import { courtHeading, resolveTeam, winnerOf } from '../../lib/results'
 
 /** 16進カラーに透明度を掛けた淡色を作る */
 function tint(hex: string, alpha: number): string {
@@ -30,13 +30,16 @@ function currentBorder(
   return s
 }
 
-/** 区分名から帯の色を決める。決勝＝金、準決勝/決定戦＝緑、予選＝青。
- *  「準決勝」は文字列に「決勝」を含むので、決勝より先に判定する。 */
+/** 区分名から帯の色を決める。決勝＝金、準決勝/決定戦＝緑、準々決勝＝水色、
+ *  予選・リーグ＝青、◯回戦・トーナメント＝紫。
+ *  「準決勝」「準々決勝」は文字列に「決勝」を含むので、決勝より先に判定する。 */
 function stageColor(stage: string): string {
-  if (stage.includes('予選')) return '#305496'
+  if (stage.includes('予選') || stage.includes('リーグ')) return '#305496'
+  if (stage.includes('準々決')) return '#2e75b6'
   if (stage.includes('準決')) return '#548235'
   if (stage.includes('決勝')) return '#bf8f00'
   if (stage.includes('決定戦')) return '#548235'
+  if (stage.includes('回戦') || stage.includes('トーナメント')) return '#7030a0'
   return '#475569'
 }
 
@@ -95,7 +98,7 @@ export function CourtTable({
             className="border-2 border-slate-900 py-1.5 text-[30px] font-extrabold text-white"
             style={{ backgroundColor: court.color }}
           >
-            {court.id}コート（{court.label}）
+            {court.id}コート（{courtHeading(court)}）
           </th>
         </tr>
         <tr className="text-[20px]">
@@ -113,7 +116,7 @@ export function CourtTable({
           const changed = isRecentlyChanged(court.id, rowIndex)
           const showBand = r.stage && (i === 0 || rows[i - 1].stage !== r.stage)
           const scoreBg = changed ? '#fef08a' : '#ffffff'
-          const win = winnerOf(r.leftScore, r.rightScore)
+          const win = winnerOf(r.leftScore, r.rightScore, court.lowerWins)
           const leftWin = win === 'left'
           const rightWin = win === 'right'
           return (
@@ -144,7 +147,7 @@ export function CourtTable({
                   style={{ backgroundColor: leftWin ? winClassBg : rightWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'mid') }}
                 >
                   {leftWin && <WinTag bg={winScoreBg} color={winScoreText} />}
-                  {resolveTeam(r.left, all)}
+                  {resolveTeam(r.left, all, court)}
                 </td>
                 <td
                   className={`${cellBase} relative min-w-[70px] py-1 ${leftWin ? 'font-black' : rightWin ? 'text-slate-400' : ''}`}
@@ -180,7 +183,7 @@ export function CourtTable({
                   style={{ backgroundColor: rightWin ? winClassBg : leftWin ? LOSE_BG : tint(court.color, 0.22), ...currentBorder(isCurrent, 'last') }}
                 >
                   {rightWin && <WinTag bg={winScoreBg} color={winScoreText} />}
-                  {resolveTeam(r.right, all)}
+                  {resolveTeam(r.right, all, court)}
                 </td>
               </tr>
             </Fragment>

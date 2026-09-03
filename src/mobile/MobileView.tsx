@@ -2,7 +2,8 @@ import { type CSSProperties, type ReactNode } from 'react'
 import { useSyncedState } from '../lib/useSyncedState'
 import type { AppState, Court, LiveStreamSlide, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
 import { CourtTable } from '../display/slides/MatchResultsView'
-import { resolveTeam } from '../lib/results'
+import { StandingsBlock } from '../display/slides/StandingsView'
+import { courtHeading, resolveTeam } from '../lib/results'
 import { youtubeEmbedSrc, InAppLiveVideo } from '../display/slides/LiveStreamView'
 import { CourtMapView } from '../display/slides/CourtMapView'
 import { TableView } from '../display/slides/TableView'
@@ -43,7 +44,7 @@ export function MobileView() {
       {/* ヘッダー・流し文字・注意バナーは上部に固定し、スクロールしても常に見えるようにする */}
       <div className="sticky top-0 z-30 shadow">
         <header className="bg-[#1e50a2] px-4 py-2.5 text-center text-lg font-extrabold tracking-wide text-white">
-          夏季クラスマッチ 2026
+          {state.texts.eventTitle}
         </header>
 
         {state.ticker.enabled && state.ticker.text.trim() && (
@@ -124,6 +125,20 @@ function MobileSection({ slide, state }: { slide: Slide; state: AppState }) {
       )
     case 'matchResults':
       return <MobileResults slide={slide} courts={state.courts} />
+    case 'standings':
+      return (
+        <Card title={slide.title}>
+          <div className="flex flex-col gap-4">
+            {state.courts
+              .filter((c) => slide.courts.includes(c.id))
+              .map((c) => (
+                <FitWidth key={c.id}>
+                  <StandingsBlock court={c} />
+                </FitWidth>
+              ))}
+          </div>
+        </Card>
+      )
     case 'wbgt':
       return <MobileWbgt slide={slide} />
     case 'notice':
@@ -165,10 +180,12 @@ function MobileCourtCard({ court, courts }: { court: Court; courts: Court[] }) {
         className="px-3 py-1 text-center text-base font-extrabold text-white"
         style={{ backgroundColor: court.color }}
       >
-        {court.id}コート（{court.label}）
+        {court.id}コート（{courtHeading(court)}）
       </div>
       <div className="flex flex-col items-center gap-1 px-3 py-2.5">
-        {finished ? (
+        {court.rows.length === 0 ? (
+          <div className="py-2 text-xl font-bold text-slate-400">試合未登録</div>
+        ) : finished ? (
           <div className="py-2 text-xl font-bold text-slate-400">全試合終了</div>
         ) : notStarted || !match ? (
           <div className="py-2 text-xl font-bold text-slate-400">開始前</div>
@@ -183,13 +200,13 @@ function MobileCourtCard({ court, courts }: { court: Court; courts: Court[] }) {
               )}
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.left, courts)}</span>
+              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.left, courts, court)}</span>
               <span className="text-base font-bold text-slate-400">vs</span>
-              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.right, courts)}</span>
+              <span className="text-4xl font-extrabold text-slate-900">{resolveTeam(match.right, courts, court)}</span>
             </div>
             {next && (
               <div className="text-center text-xs font-semibold text-slate-500">
-                次: {next.code} {resolveTeam(next.left, courts)} vs {resolveTeam(next.right, courts)}
+                次: {next.code} {resolveTeam(next.left, courts, court)} vs {resolveTeam(next.right, courts, court)}
                 {next.time && `（${next.time}）`}
               </div>
             )}

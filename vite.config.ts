@@ -19,7 +19,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/state\.php/, /wbgt\.php/],
       },
       manifest: {
-        name: '夏季クラスマッチ2026 ディスプレイ',
+        name: 'クラスマッチ ディスプレイ',
         short_name: 'クラスマッチ',
         display: 'fullscreen',
         background_color: '#1e3a8a',

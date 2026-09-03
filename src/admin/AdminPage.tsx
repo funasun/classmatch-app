@@ -10,7 +10,7 @@ import { pageCount } from '../display/frames'
 
 const AUTH_KEY = 'classmatch-admin-ok'
 
-function PasscodeGate({ onOk }: { onOk: () => void }) {
+function PasscodeGate({ title, onOk }: { title: string; onOk: () => void }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -31,9 +31,7 @@ function PasscodeGate({ onOk }: { onOk: () => void }) {
   return (
     <div className="flex h-screen items-center justify-center bg-slate-100">
       <div className="w-96 rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="mb-1 text-center text-2xl font-extrabold text-slate-800">
-          夏季クラスマッチ2026
-        </h1>
+        <h1 className="mb-1 text-center text-2xl font-extrabold text-slate-800">{title}</h1>
         <p className="mb-6 text-center font-bold text-slate-500">本部管理画面</p>
         <input
           type="password"
@@ -89,6 +87,14 @@ function TextsDialog({
       >
         <h2 className="mb-4 text-xl font-extrabold text-slate-800">表示画面の文言設定</h2>
         <div className="flex flex-col gap-4">
+          <label className="font-bold text-slate-600">
+            大会名（管理画面・スマホ版の見出し。例: 冬季クラスマッチ2026）
+            <input
+              value={state.texts.eventTitle}
+              onChange={(e) => set('eventTitle', e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-semibold"
+            />
+          </label>
           <label className="font-bold text-slate-600">
             「注意」のときの上部バナー
             <input
@@ -293,7 +299,11 @@ export function AdminPage() {
 
   useEffect(() => setPreviewPage(0), [selectedId])
 
-  if (!authed) return <PasscodeGate onOk={() => setAuthed(true)} />
+  if (!authed) {
+    return (
+      <PasscodeGate title={state?.texts.eventTitle ?? 'クラスマッチ'} onOk={() => setAuthed(true)} />
+    )
+  }
   if (!state) {
     return (
       <div className="flex h-screen items-center justify-center text-2xl font-bold text-slate-500">
@@ -339,7 +349,8 @@ export function AdminPage() {
       {/* ヘッダー */}
       <header className="flex items-center gap-4 border-b border-slate-300 bg-white px-4 py-2 shadow-sm">
         <h1 className="text-lg font-extrabold text-slate-800">
-          夏季クラスマッチ2026 <span className="text-sm font-bold text-slate-400">本部管理画面</span>
+          {state.texts.eventTitle}{' '}
+          <span className="text-sm font-bold text-slate-400">本部管理画面</span>
         </h1>
 
         <div className="flex items-center gap-1 rounded-xl border-2 border-slate-300 p-1">

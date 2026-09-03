@@ -163,6 +163,7 @@ export const defaultTicker: Ticker = {
 }
 
 export const defaultTexts: DisplayTexts = {
+  eventTitle: '夏季クラスマッチ2026',
   cautionBanner: '⚠ 熱中症注意 ― こまめに水分・塩分をとってください（保健室より）',
   cancelTitle: '熱中症警戒のため\n試合中止',
   cancelSub: '保健室の指示があるまでお待ちください',
@@ -181,11 +182,26 @@ export function createInitialState(): AppState {
   }
 }
 
+/** 夏のコート A〜F の場所（旧データにはコートの場所が無いので補う） */
+const LEGACY_PLACES: Record<string, string> = {
+  A: '体育館',
+  B: '体育館',
+  C: '体育館',
+  D: '体育館',
+  E: 'ハンドボールコート（野外）',
+  F: 'ハンドボールコート（野外）',
+}
+
 /** サーバやキャッシュに残っている旧形式のデータに新フィールドを補う */
 export function normalizeState(state: AppState): AppState {
   state.pinnedSlideId ??= null
   state.texts = { ...defaultTexts, ...(state.texts ?? {}) }
   state.ticker = { ...defaultTicker, ...(state.ticker ?? {}) }
+  state.courts ??= []
+  for (const court of state.courts) {
+    court.place ??= LEGACY_PLACES[court.id] ?? ''
+    court.rows ??= []
+  }
   for (const slide of state.slides) {
     if (slide.type === 'matchResults') slide.note ??= DEFAULT_RESULTS_NOTE
     if (slide.type === 'wbgt') {

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { AppState, Slide, SlideType } from '../types'
+import type { AppState, Court, Slide, SlideType } from '../types'
 import { SlideCanvas } from '../display/DisplayPage'
 import { pageCount } from '../display/frames'
 import { DEFAULT_RESULTS_NOTE } from '../data/initialState'
@@ -10,14 +10,17 @@ const TYPE_INFO: Record<SlideType, { label: string; icon: string; color: string 
   current: { label: '現在の試合', icon: '🏐', color: 'bg-blue-100 text-blue-800' },
   wbgt: { label: '暑さ指数', icon: '🌡️', color: 'bg-orange-100 text-orange-800' },
   matchResults: { label: '試合結果', icon: '📊', color: 'bg-green-100 text-green-800' },
+  standings: { label: 'リーグ順位表', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' },
   courtMap: { label: 'コート配置図', icon: '🗺️', color: 'bg-teal-100 text-teal-800' },
   table: { label: '表', icon: '📋', color: 'bg-purple-100 text-purple-800' },
   notice: { label: 'お知らせ', icon: '📢', color: 'bg-amber-100 text-amber-800' },
   liveStream: { label: 'ライブ映像', icon: '📹', color: 'bg-red-100 text-red-800' },
 }
 
-function newSlide(type: SlideType): Slide {
+function newSlide(type: SlideType, courts: Court[]): Slide {
   const base = { id: crypto.randomUUID(), duration: 10, enabled: true }
+  // 表示コートの初期値は先頭2コート（2コートまでが見やすい）
+  const firstCourts = courts.slice(0, 2).map((c) => c.id)
   switch (type) {
     case 'current':
       return { ...base, type, title: '現在の試合' }
@@ -33,7 +36,9 @@ function newSlide(type: SlideType): Slide {
         measuredAt: '',
       }
     case 'matchResults':
-      return { ...base, type, title: '試合結果速報', courts: ['A', 'B'], note: DEFAULT_RESULTS_NOTE }
+      return { ...base, type, title: '試合結果速報', courts: firstCourts, note: DEFAULT_RESULTS_NOTE }
+    case 'standings':
+      return { ...base, type, title: 'リーグ順位表', courts: firstCourts }
     case 'courtMap':
       return { ...base, type, title: 'コート配置図' }
     case 'table':
@@ -102,7 +107,7 @@ export function SlideList({
                   key={t}
                   onClick={() => {
                     setShowAdd(false)
-                    const slide = newSlide(t)
+                    const slide = newSlide(t, state.courts)
                     update((d) => d.slides.push(slide))
                     onSelect(slide.id)
                   }}

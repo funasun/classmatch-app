@@ -1,4 +1,5 @@
-export type CourtId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+/** コート記号（A, B, … 自由に増やせる）。試合コード「A-1」の前半に対応する */
+export type CourtId = string
 
 /** 1試合分の行（Excelの1行に対応） */
 export interface MatchRow {
@@ -6,6 +7,8 @@ export interface MatchRow {
   time?: string      // 例: 9:05~9:20（パンフレットの予定時刻）
   /** 区分（予選リーグ／順位決定トーナメント／決勝）。前の行と変わったところに帯が入る */
   stage?: string
+  /** リーグ名（例: X / Y）。順位表の集計単位。空なら対戦の組み合わせから自動で分ける */
+  league?: string
   left: string       // 例: 3-1（クラス）
   leftScore: string
   rightScore: string
@@ -16,6 +19,12 @@ export interface Court {
   id: CourtId
   label: string      // 例: 3年女子
   color: string      // ヘッダー帯の色
+  /** 競技名（例: バスケットボール）。複数競技の大会で見出しに出す。空なら出さない */
+  sport?: string
+  /** 場所（例: 体育館／グラウンド）。コート配置図のグループ分けに使う */
+  place?: string
+  /** 点数が少ない方が勝ちの競技（タイム・失点数など） */
+  lowerWins?: boolean
   rows: MatchRow[]
   /** 現在の試合の行番号（-1 = 開始前, rows.length = 全試合終了） */
   current: number
@@ -25,6 +34,7 @@ export type SlideType =
   | 'current'
   | 'wbgt'
   | 'matchResults'
+  | 'standings'
   | 'courtMap'
   | 'table'
   | 'notice'
@@ -65,6 +75,12 @@ export interface MatchResultsSlide extends SlideBase {
   note?: string
 }
 
+/** リーグ順位表（予選リーグの結果から勝敗・得失点差を自動集計） */
+export interface StandingsSlide extends SlideBase {
+  type: 'standings'
+  courts: CourtId[]
+}
+
 /** コート配置図（どの物理コートがどのリーグかをパンフレットの図で示す） */
 export interface CourtMapSlide extends SlideBase {
   type: 'courtMap'
@@ -101,6 +117,7 @@ export type Slide =
   | CurrentSlide
   | WbgtSlide
   | MatchResultsSlide
+  | StandingsSlide
   | CourtMapSlide
   | TableSlide
   | NoticeSlide
@@ -111,6 +128,8 @@ export type AlertStatus = 'normal' | 'caution' | 'canceled'
 
 /** 表示画面の固定文言（管理画面から自由に編集できる） */
 export interface DisplayTexts {
+  /** 大会名（例: 夏季クラスマッチ2026）。管理画面とスマホ版の見出しに出る */
+  eventTitle: string
   cautionBanner: string  // 注意バナー
   cancelTitle: string    // 中止画面の大見出し（改行可）
   cancelSub: string      // 中止画面の補足
