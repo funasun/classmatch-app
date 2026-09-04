@@ -1,0 +1,18 @@
+# クラスマッチ同期サーバ（Cloudflare Workers + Durable Objects）
+# 状態は Durable Object 1個（名前 "classmatch"）が保持し、WebSocket で全端末へ配信する。
+# デプロイ: cd worker && npx wrangler deploy
+# 合言葉:   cd worker && npx wrangler secret put ADMIN_PASSCODE
+name = "classmatch-sync"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[durable_objects]
+bindings = [{ name = "ROOM", class_name = "ClassmatchRoom" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ClassmatchRoom"]

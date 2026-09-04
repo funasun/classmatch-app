@@ -33,6 +33,8 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_ADMIN_EMAIL: ${{ vars.VITE_FIREBASE_ADMIN_EMAIL }}
+          # Cloudflare 同期サーバ（worker/）。設定されていれば Firebase より優先される
+          VITE_SYNC_URL: ${{ vars.VITE_SYNC_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

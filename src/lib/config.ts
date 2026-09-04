@@ -10,6 +10,11 @@ export const FIREBASE_ADMIN_EMAIL: string =
 
 export const FIREBASE_ENABLED = FIREBASE_API_KEY !== '' && FIREBASE_PROJECT_ID !== ''
 
+/** Cloudflare 同期サーバ（worker/）の URL。設定されていればこちらを優先し、
+ *  Firebase は使わない（例: https://classmatch-sync.xxxx.workers.dev） */
+export const SYNC_URL: string = (import.meta.env.VITE_SYNC_URL ?? '').replace(/\/$/, '')
+export const SYNC_ENABLED = SYNC_URL !== ''
+
 /** ローカルモードでの管理画面の合言葉（Firebase モードでは Firebase のパスワードを使う） */
 export const ADMIN_PASSCODE: string = import.meta.env.VITE_ADMIN_PASSCODE ?? 'classmatch'
 
