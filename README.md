@@ -93,3 +93,16 @@ npm run dev
 - 同期: Firebase Firestore の onSnapshot によるリアルタイムプッシュ（ポーリングなし）。状態全体を `classmatch/state` に JSON 文字列で保存
 - 認証: Firebase Authentication（メール/パスワード）。管理画面の合言葉 = 管理者ユーザーのパスワード
 - WBGT: 環境省 熱中症予防情報サイト API（実測値 → 実況推定値 → 他端末が Firestore に共有した値、の順にフォールバック）
+
+## 同期サーバ（Cloudflare Workers + Durable Objects）
+
+`worker/` が本番の同期サーバです。状態を 1 つの Durable Object が保持し、表示端末へ WebSocket で配信します。
+
+```bash
+cd worker
+npx wrangler deploy                      # デプロイ（要 `npx wrangler login`）
+npx wrangler secret put ADMIN_PASSCODE   # 管理画面の合言葉を変更
+npx wrangler dev --port 8787             # ローカル起動（worker/.dev.vars に ADMIN_PASSCODE=... を書く）
+```
+
+フロントは GitHub Actions の変数 `VITE_SYNC_URL`（Worker の URL）が設定されていると Cloudflare を使い、無ければ Firebase、それも無ければローカルモードで動きます。
