@@ -1,20 +1,21 @@
 import type { Court, StandingsSlide } from '../../types'
 import { FitScale } from '../../components/FitScale'
-import { leagueTables, type LeagueTable } from '../../lib/standings'
+import { leagueTables, rankRuleLabel, rankRuleOf, type LeagueTable } from '../../lib/standings'
 import { courtHeading } from '../../lib/results'
 
 const cell = 'border-2 border-slate-900 px-3 py-1 text-center font-bold whitespace-nowrap'
-const HEADERS = ['順位', 'クラス', '試合', '勝', '負', '分', '得点', '失点', '得失差']
 
-function LeagueTableView({ table, color }: { table: LeagueTable; color: string }) {
+function LeagueTableView({ table, court }: { table: LeagueTable; court: Court }) {
+  const usePoints = rankRuleOf(court) === 'points'
+  const headers = ['順位', 'クラス', '試合', '勝', '負', '分', ...(usePoints ? ['勝点'] : []), '得点', '失点', '得失差']
   return (
     <table className="border-collapse text-[24px] leading-tight">
       <thead>
         <tr>
           <th
-            colSpan={HEADERS.length}
+            colSpan={headers.length}
             className="border-2 border-slate-900 py-1 text-[24px] font-extrabold text-white"
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: court.color }}
           >
             {table.name}
             <span className="ml-3 text-[18px] font-bold opacity-90">
@@ -23,7 +24,7 @@ function LeagueTableView({ table, color }: { table: LeagueTable; color: string }
           </th>
         </tr>
         <tr className="text-[18px]">
-          {HEADERS.map((h) => (
+          {headers.map((h) => (
             <th key={h} className={`${cell} bg-white py-0.5`}>
               {h}
             </th>
@@ -39,6 +40,7 @@ function LeagueTableView({ table, color }: { table: LeagueTable; color: string }
             <td className={cell}>{r.won}</td>
             <td className={cell}>{r.lost}</td>
             <td className={cell}>{r.drawn}</td>
+            {usePoints && <td className={`${cell} text-[26px]`}>{r.pts}</td>}
             <td className={cell}>{r.pf}</td>
             <td className={cell}>{r.pa}</td>
             <td className={cell}>{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
@@ -46,7 +48,7 @@ function LeagueTableView({ table, color }: { table: LeagueTable; color: string }
         ))}
         {table.rows.length === 0 && (
           <tr>
-            <td colSpan={HEADERS.length} className={`${cell} text-slate-400`}>
+            <td colSpan={headers.length} className={`${cell} text-slate-400`}>
               まだ試合がありません
             </td>
           </tr>
@@ -61,11 +63,11 @@ export function StandingsBlock({ court }: { court: Court }) {
   const tables = leagueTables(court)
   return (
     <div className="flex flex-col items-start gap-3">
-      <div
-        className="rounded-lg px-4 py-1 text-[28px] font-extrabold text-white"
-        style={{ backgroundColor: court.color }}
-      >
-        {court.id}コート（{courtHeading(court)}）
+      <div className="flex items-baseline gap-4">
+        <div className="rounded-lg px-4 py-1 text-[28px] font-extrabold text-white" style={{ backgroundColor: court.color }}>
+          {court.id}コート（{courtHeading(court)}）
+        </div>
+        <span className="text-[16px] font-bold text-slate-500">{rankRuleLabel(court)} の順</span>
       </div>
       {tables.length === 0 ? (
         <div className="text-[22px] font-bold text-slate-400">
@@ -74,7 +76,7 @@ export function StandingsBlock({ court }: { court: Court }) {
       ) : (
         <div className="flex flex-wrap items-start gap-6">
           {tables.map((t) => (
-            <LeagueTableView key={t.name} table={t} color={court.color} />
+            <LeagueTableView key={t.name} table={t} court={court} />
           ))}
         </div>
       )}
@@ -88,7 +90,6 @@ export function StandingsView({ slide, courts }: { slide: StandingsSlide; courts
     <div className="flex h-full w-full flex-col bg-white">
       <div className="flex items-center gap-6 bg-[#1e50a2] px-8 py-3 text-white">
         <span className="text-[40px] font-extrabold tracking-wider">{slide.title}</span>
-        <span className="text-[20px] opacity-90">勝ち数 → 得失差 → 得点 の順で並びます</span>
       </div>
       <div className="min-h-0 flex-1 p-4">
         <FitScale>
@@ -97,9 +98,7 @@ export function StandingsView({ slide, courts }: { slide: StandingsSlide; courts
               <StandingsBlock key={c.id} court={c} />
             ))}
             {shown.length === 0 && (
-              <div className="text-[32px] font-bold text-slate-400">
-                表示するコートが選ばれていません
-              </div>
+              <div className="text-[32px] font-bold text-slate-400">表示するコートが選ばれていません</div>
             )}
           </div>
         </FitScale>

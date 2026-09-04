@@ -27,6 +27,10 @@ export function pageCount(slide: Slide, state: AppState): number {
   if (slide.type === 'table') {
     return Math.max(1, Math.ceil(slide.rows.length / MAX_ROWS_PER_PAGE))
   }
+  // トーナメント表は1ページに1コート
+  if (slide.type === 'bracket') {
+    return Math.max(1, slide.courts.length)
+  }
   return 1
 }
 

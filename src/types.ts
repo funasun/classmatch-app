@@ -1,6 +1,9 @@
 /** コート記号（A, B, … 自由に増やせる）。試合コード「A-1」の前半に対応する */
 export type CourtId = string
 
+/** 順位の決め方 */
+export type RankRule = 'wins' | 'points'
+
 /** 1試合分の行（Excelの1行に対応） */
 export interface MatchRow {
   code: string       // 例: A-1
@@ -25,6 +28,10 @@ export interface Court {
   place?: string
   /** 点数が少ない方が勝ちの競技（タイム・失点数など） */
   lowerWins?: boolean
+  /** 順位表の並べ方。wins=勝ち数→得失差→得点（既定）、points=勝ち点→得失差→得点 */
+  rankRule?: RankRule
+  /** 勝ち点（rankRule が points のとき）。既定は 勝3・分1・負0 */
+  points?: { win: number; draw: number; loss: number }
   rows: MatchRow[]
   /** 現在の試合の行番号（-1 = 開始前, rows.length = 全試合終了） */
   current: number
@@ -35,6 +42,7 @@ export type SlideType =
   | 'wbgt'
   | 'matchResults'
   | 'standings'
+  | 'bracket'
   | 'courtMap'
   | 'table'
   | 'notice'
@@ -81,6 +89,12 @@ export interface StandingsSlide extends SlideBase {
   courts: CourtId[]
 }
 
+/** トーナメント表（「◯-◯勝者」のつながりから山形の図を自動で描く。1ページ=1コート） */
+export interface BracketSlide extends SlideBase {
+  type: 'bracket'
+  courts: CourtId[]
+}
+
 /** コート配置図（どの物理コートがどのリーグかをパンフレットの図で示す） */
 export interface CourtMapSlide extends SlideBase {
   type: 'courtMap'
@@ -118,6 +132,7 @@ export type Slide =
   | WbgtSlide
   | MatchResultsSlide
   | StandingsSlide
+  | BracketSlide
   | CourtMapSlide
   | TableSlide
   | NoticeSlide

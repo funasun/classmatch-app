@@ -3,6 +3,7 @@ import { useSyncedState } from '../lib/useSyncedState'
 import type { AppState, Court, LiveStreamSlide, MatchResultsSlide, NoticeSlide, Slide, Ticker, WbgtSlide } from '../types'
 import { CourtTable } from '../display/slides/MatchResultsView'
 import { StandingsBlock } from '../display/slides/StandingsView'
+import { BracketBlock } from '../display/slides/BracketView'
 import { courtHeading, resolveTeam } from '../lib/results'
 import { youtubeEmbedSrc, InAppLiveVideo } from '../display/slides/LiveStreamView'
 import { CourtMapView } from '../display/slides/CourtMapView'
@@ -134,6 +135,20 @@ function MobileSection({ slide, state }: { slide: Slide; state: AppState }) {
               .map((c) => (
                 <FitWidth key={c.id}>
                   <StandingsBlock court={c} />
+                </FitWidth>
+              ))}
+          </div>
+        </Card>
+      )
+    case 'bracket':
+      return (
+        <Card title={slide.title}>
+          <div className="flex flex-col gap-4">
+            {state.courts
+              .filter((c) => slide.courts.includes(c.id))
+              .map((c) => (
+                <FitWidth key={c.id}>
+                  <BracketBlock court={c} courts={state.courts} />
                 </FitWidth>
               ))}
           </div>

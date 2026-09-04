@@ -4,6 +4,7 @@ import { CurrentMatchView } from './slides/CurrentMatchView'
 import { WbgtView } from './slides/WbgtView'
 import { MatchResultsView } from './slides/MatchResultsView'
 import { StandingsView } from './slides/StandingsView'
+import { BracketView } from './slides/BracketView'
 import { CourtMapView } from './slides/CourtMapView'
 import { TableView } from './slides/TableView'
 import { NoticeView } from './slides/NoticeView'
@@ -21,6 +22,8 @@ export function SlideFrame({ frame, state }: { frame: Frame; state: AppState }) 
       return <MatchResultsView slide={slide} courts={state.courts} page={page} pages={pages} />
     case 'standings':
       return <StandingsView slide={slide} courts={state.courts} />
+    case 'bracket':
+      return <BracketView slide={slide} courts={state.courts} page={page} />
     case 'courtMap':
       return <CourtMapView courts={state.courts} />
     case 'table':

@@ -1,5 +1,5 @@
-import type { Court, MatchRow } from '../types'
-import { toNumber } from './results'
+import type { Court, MatchRow, RankRule } from '../types'
+import { judge } from './results'
 
 export interface StandingRow {
   team: string
@@ -13,6 +13,8 @@ export interface StandingRow {
   pa: number
   /** 得失差（lowerWins の競技は失点−得点） */
   diff: number
+  /** 勝ち点（勝・分・負ごとの点数の合計） */
+  pts: number
   /** 順位（同率は同じ順位） */
   rank: number
 }
@@ -26,8 +28,10 @@ export interface LeagueTable {
   done: number
 }
 
+export const DEFAULT_POINTS = { win: 3, draw: 1, loss: 0 }
+
 /** リーグ戦とみなす行：リーグ名が入っているか、区分に「リーグ」を含む行 */
-function isLeagueRow(r: MatchRow): boolean {
+export function isLeagueRow(r: MatchRow): boolean {
   return !!r.league?.trim() || !!r.stage?.includes('リーグ')
 }
 
@@ -87,26 +91,47 @@ export function groupLeagues(court: Court): { name: string; rows: MatchRow[] }[]
   return out
 }
 
-/** 並び順のキー。勝ち数 → 得失差 → 得点 の順で比べる。同じキー＝同率 */
-function sortKey(r: StandingRow): [number, number, number] {
-  return [r.won, r.diff, r.pf]
+/** 順位の決め方（コート設定）。未設定なら勝ち数 */
+export function rankRuleOf(court: Court): RankRule {
+  return court.rankRule ?? 'wins'
 }
 
-function compareRows(a: StandingRow, b: StandingRow): number {
-  const ka = sortKey(a)
-  const kb = sortKey(b)
+export function pointsOf(court: Court): { win: number; draw: number; loss: number } {
+  return { ...DEFAULT_POINTS, ...(court.points ?? {}) }
+}
+
+/** 順位表の見出しに出す並び順の説明 */
+export function rankRuleLabel(court: Court): string {
+  if (rankRuleOf(court) === 'points') {
+    const p = pointsOf(court)
+    return `勝ち点（勝${p.win}・分${p.draw}・負${p.loss}）→ 得失差 → 得点`
+  }
+  return '勝ち数 → 得失差 → 得点'
+}
+
+/** 並び順のキー。勝ち数（または勝ち点）→ 得失差 → 得点 の順で比べる。同じキー＝同率 */
+function sortKey(r: StandingRow, rule: RankRule): [number, number, number] {
+  return [rule === 'points' ? r.pts : r.won, r.diff, r.pf]
+}
+
+function compareRows(a: StandingRow, b: StandingRow, rule: RankRule): number {
+  const ka = sortKey(a, rule)
+  const kb = sortKey(b, rule)
   for (let i = 0; i < ka.length; i++) {
     if (ka[i] !== kb[i]) return kb[i] - ka[i]
   }
   return 0
 }
 
-function buildTable(name: string, rows: MatchRow[], lowerWins: boolean): LeagueTable {
+function buildTable(name: string, rows: MatchRow[], court: Court): LeagueTable {
+  const lowerWins = !!court.lowerWins
+  const rule = rankRuleOf(court)
+  const p = pointsOf(court)
   const stats = new Map<string, StandingRow>()
   const get = (team: string) => {
     let s = stats.get(team)
     if (!s) {
-      s = { team, played: 0, won: 0, drawn: 0, lost: 0, pf: 0, pa: 0, diff: 0, rank: 0 }
+      s = { team, played: 0, won: 0, drawn: 0, lost: 0, pf: 0, pa: 0, diff: 0, pts: 0, rank: 0 }
       stats.set(team, s)
     }
     return s
@@ -115,22 +140,19 @@ function buildTable(name: string, rows: MatchRow[], lowerWins: boolean): LeagueT
   for (const r of rows) {
     const L = get(r.left)
     const R = get(r.right)
-    const a = toNumber(r.leftScore)
-    const b = toNumber(r.rightScore)
-    const valid =
-      r.leftScore.trim() !== '' && r.rightScore.trim() !== '' && Number.isFinite(a) && Number.isFinite(b)
-    if (!valid) continue
+    const res = judge(r.leftScore, r.rightScore, lowerWins)
+    if (!res.played) continue
     done++
     L.played++
     R.played++
-    L.pf += a
-    L.pa += b
-    R.pf += b
-    R.pa += a
-    if (a === b) {
+    L.pf += res.leftTotal
+    L.pa += res.rightTotal
+    R.pf += res.rightTotal
+    R.pa += res.leftTotal
+    if (res.winner === 'none') {
       L.drawn++
       R.drawn++
-    } else if (a > b === !lowerWins) {
+    } else if (res.winner === 'left') {
       L.won++
       R.lost++
     } else {
@@ -139,17 +161,20 @@ function buildTable(name: string, rows: MatchRow[], lowerWins: boolean): LeagueT
     }
   }
   const list = [...stats.values()]
-  for (const s of list) s.diff = lowerWins ? s.pa - s.pf : s.pf - s.pa
-  list.sort(compareRows)
+  for (const s of list) {
+    s.diff = lowerWins ? s.pa - s.pf : s.pf - s.pa
+    s.pts = s.won * p.win + s.drawn * p.draw + s.lost * p.loss
+  }
+  list.sort((a, b) => compareRows(a, b, rule))
   list.forEach((s, i) => {
-    s.rank = i > 0 && compareRows(list[i - 1], s) === 0 ? list[i - 1].rank : i + 1
+    s.rank = i > 0 && compareRows(list[i - 1], s, rule) === 0 ? list[i - 1].rank : i + 1
   })
   return { name, rows: list, complete: rows.length > 0 && done === rows.length, total: rows.length, done }
 }
 
 /** コートのリーグ順位表をすべて計算する */
 export function leagueTables(court: Court): LeagueTable[] {
-  return groupLeagues(court).map((g) => buildTable(g.name, g.rows, !!court.lowerWins))
+  return groupLeagues(court).map((g) => buildTable(g.name, g.rows, court))
 }
 
 /** 確定した「N位」のクラス名。全試合が終わり、その順位が同率で割れていないときだけ返す */

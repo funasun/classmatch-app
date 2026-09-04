@@ -8,12 +8,15 @@ import type {
   NoticeSlide,
   Slide,
   StandingsSlide,
+  BracketSlide,
+  RankRule,
   TableSlide,
   WbgtSlide,
 } from '../types'
 import { EditableGrid } from './EditableGrid'
 import { youtubeEmbedSrc } from '../display/slides/LiveStreamView'
 import { resolveTeam } from '../lib/results'
+import { pointsOf } from '../lib/standings'
 
 type Update = (mutate: (draft: AppState) => void) => void
 
@@ -65,6 +68,11 @@ function nextCourtId(courts: Court[]): string {
     if (!courts.some((c) => c.id === ch)) return ch
   }
   return `コート${courts.length + 1}`
+}
+
+/** 表示コートの一覧を持つスライドか */
+function hasCourts(s: Slide): s is MatchResultsSlide | StandingsSlide | BracketSlide {
+  return s.type === 'matchResults' || s.type === 'standings' || s.type === 'bracket'
 }
 
 /** コート記号の編集欄。空・重複は確定させない（確定は Enter か欄を離れたとき） */
@@ -223,9 +231,7 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
       if (!c) return
       c.id = next
       for (const s of d.slides) {
-        if (s.type === 'matchResults' || s.type === 'standings') {
-          s.courts = s.courts.map((x) => (x === id ? next : x))
-        }
+        if (hasCourts(s)) s.courts = s.courts.map((x) => (x === id ? next : x))
       }
     })
     setActiveId(next)
@@ -239,13 +245,21 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
     update((d) => {
       d.courts = d.courts.filter((c) => c.id !== id)
       for (const s of d.slides) {
-        if (s.type === 'matchResults' || s.type === 'standings') {
-          s.courts = s.courts.filter((x) => x !== id)
-        }
+        if (hasCourts(s)) s.courts = s.courts.filter((x) => x !== id)
       }
     })
     setActiveId(remaining[0]?.id ?? '')
   }
+
+  /** コートの並び順を入れ替える（現在の試合のカードや配置図の順に反映） */
+  const moveCourt = (delta: number) =>
+    update((d) => {
+      const i = d.courts.findIndex((c) => c.id === id)
+      const j = i + delta
+      if (i < 0 || j < 0 || j >= d.courts.length) return
+      const [c] = d.courts.splice(i, 1)
+      d.courts.splice(j, 0, c)
+    })
 
   /** 試合コードを「記号-連番」で上から付け直す */
   const renumber = () =>
@@ -381,6 +395,54 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
           />
           点数が少ない方が勝ち（タイム競技など）
         </label>
+        <label className="flex items-center gap-1.5 font-bold text-slate-600">
+          順位の決め方
+          <select
+            value={court.rankRule ?? 'wins'}
+            onChange={(e) => mutateCourt((c) => (c.rankRule = e.target.value as RankRule))}
+            className="rounded-lg border border-slate-300 px-2 py-1.5 font-bold"
+          >
+            <option value="wins">勝ち数 → 得失差 → 得点</option>
+            <option value="points">勝ち点 → 得失差 → 得点（引き分けのある競技）</option>
+          </select>
+        </label>
+        {(court.rankRule ?? 'wins') === 'points' && (
+          <span className="flex items-center gap-1.5 font-bold text-slate-600">
+            勝ち点:
+            {(['win', 'draw', 'loss'] as const).map((k) => (
+              <label key={k} className="flex items-center gap-1">
+                {k === 'win' ? '勝' : k === 'draw' ? '分' : '負'}
+                <input
+                  type="number"
+                  value={pointsOf(court)[k]}
+                  onChange={(e) =>
+                    mutateCourt((c) => {
+                      c.points = { ...pointsOf(c), [k]: Number(e.target.value) || 0 }
+                    })
+                  }
+                  className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold"
+                />
+              </label>
+            ))}
+          </span>
+        )}
+        <span className="flex items-center gap-1 font-bold text-slate-600">
+          並び順:
+          <button
+            onClick={() => moveCourt(-1)}
+            title="ひとつ前へ"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1 hover:bg-slate-100"
+          >
+            ◀
+          </button>
+          <button
+            onClick={() => moveCourt(1)}
+            title="ひとつ後へ"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1 hover:bg-slate-100"
+          >
+            ▶
+          </button>
+        </span>
         <button
           onClick={removeCourt}
           className="ml-auto rounded-lg border border-red-300 px-3 py-1.5 font-bold text-red-600 hover:bg-red-50"
@@ -417,62 +479,53 @@ export function CourtDataEditor({ state, update }: { state: AppState; update: Up
   )
 }
 
-/* ---------- リーグ順位表スライド：表示コート選択 ---------- */
+/* ---------- 表示コートの選択（結果速報・順位表・トーナメント表で共通） ---------- */
 
-export function StandingsEditor({
-  slide,
-  state,
-  update,
+function CourtPicker({
+  courts,
+  selected,
+  onToggle,
+  hint,
 }: {
-  slide: StandingsSlide
-  state: AppState
-  update: Update
+  courts: Court[]
+  selected: CourtId[]
+  onToggle: (id: CourtId) => void
+  hint: string
 }) {
-  const toggleCourt = (id: CourtId) =>
-    update((d) => {
-      const s = d.slides.find((s) => s.id === slide.id) as StandingsSlide
-      s.courts = s.courts.includes(id)
-        ? s.courts.filter((c) => c !== id)
-        : [...s.courts, id].sort()
-    })
-
   return (
-    <div>
-      <p className="mb-3 text-sm text-slate-500">
-        リーグ戦（区分に「リーグ」を含む行、またはリーグ列に名前を入れた行）の点数から、
-        勝敗・得失点差を自動で集計して順位を出します。全試合が終わって順位が確定すると、
-        「Xリーグ1位」のような対戦相手表記も自動でクラス名に置き換わります（同率＝抽選が必要なときはそのまま）。
-      </p>
-      <div className="mb-4">
-        <div className="mb-1 font-bold text-slate-600">このスライドに表示するコート</div>
-        <div className="flex flex-wrap gap-2">
-          {state.courts.map((c) => (
-            <label
-              key={c.id}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 font-bold ${
-                slide.courts.includes(c.id)
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 bg-white text-slate-400'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={slide.courts.includes(c.id)}
-                onChange={() => toggleCourt(c.id)}
-              />
-              {c.id}
-            </label>
-          ))}
-        </div>
-        <p className="mt-1 text-xs text-slate-400">2コートまでが見やすいです</p>
+    <div className="mb-4">
+      <div className="mb-1 font-bold text-slate-600">このスライドに表示するコート</div>
+      <div className="flex flex-wrap gap-2">
+        {courts.map((c) => (
+          <label
+            key={c.id}
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 font-bold ${
+              selected.includes(c.id)
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-200 bg-white text-slate-400'
+            }`}
+          >
+            <input type="checkbox" checked={selected.includes(c.id)} onChange={() => onToggle(c.id)} />
+            {c.id}
+            {c.label && <span className="text-xs font-semibold">{c.label}</span>}
+          </label>
+        ))}
       </div>
-      <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
-      <CourtDataEditor state={state} update={update} />
+      <p className="mt-1 text-xs text-slate-400">{hint}</p>
     </div>
   )
 }
 
-/* ---------- 試合結果速報スライド：表示コート選択 ---------- */
+/** コート一覧を持つスライドの表示コートを付け外しする */
+function toggleSlideCourt(update: Update, slideId: string, id: CourtId) {
+  update((d) => {
+    const s = d.slides.find((s) => s.id === slideId)
+    if (!s || !hasCourts(s)) return
+    s.courts = s.courts.includes(id) ? s.courts.filter((c) => c !== id) : [...s.courts, id].sort()
+  })
+}
+
+/* ---------- 試合結果速報スライド ---------- */
 
 export function MatchResultsEditor({
   slide,
@@ -483,39 +536,14 @@ export function MatchResultsEditor({
   state: AppState
   update: Update
 }) {
-  const toggleCourt = (id: CourtId) =>
-    update((d) => {
-      const s = d.slides.find((s) => s.id === slide.id) as MatchResultsSlide
-      s.courts = s.courts.includes(id)
-        ? s.courts.filter((c) => c !== id)
-        : [...s.courts, id].sort()
-    })
-
   return (
     <div>
-      <div className="mb-4">
-        <div className="mb-1 font-bold text-slate-600">このスライドに表示するコート</div>
-        <div className="flex gap-2">
-          {state.courts.map((c) => (
-            <label
-              key={c.id}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 font-bold ${
-                slide.courts.includes(c.id)
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 bg-white text-slate-400'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={slide.courts.includes(c.id)}
-                onChange={() => toggleCourt(c.id)}
-              />
-              {c.id}
-            </label>
-          ))}
-        </div>
-        <p className="mt-1 text-xs text-slate-400">2コートまでが見やすいです</p>
-      </div>
+      <CourtPicker
+        courts={state.courts}
+        selected={slide.courts}
+        onToggle={(id) => toggleSlideCourt(update, slide.id, id)}
+        hint="2コートまでが見やすいです"
+      />
       <label className="mb-4 block font-bold text-slate-600">
         タイトル帯の補足文（自由に変更できます）
         <input
@@ -528,6 +556,67 @@ export function MatchResultsEditor({
           className="mt-1 w-full max-w-xl rounded-lg border border-slate-300 px-3 py-2 font-semibold"
         />
       </label>
+      <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
+      <CourtDataEditor state={state} update={update} />
+    </div>
+  )
+}
+
+/* ---------- リーグ順位表スライド ---------- */
+
+export function StandingsEditor({
+  slide,
+  state,
+  update,
+}: {
+  slide: StandingsSlide
+  state: AppState
+  update: Update
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-sm text-slate-500">
+        リーグ戦（区分に「リーグ」を含む行、またはリーグ列に名前を入れた行）の点数から、
+        勝敗・得失点差を自動で集計して順位を出します。並べ方（勝ち数／勝ち点）はコートごとの設定です。
+        全試合が終わって順位が確定すると、「Xリーグ1位」のような対戦相手表記も自動でクラス名に置き換わります
+        （同率＝抽選が必要なときはそのまま）。
+      </p>
+      <CourtPicker
+        courts={state.courts}
+        selected={slide.courts}
+        onToggle={(id) => toggleSlideCourt(update, slide.id, id)}
+        hint="2コートまでが見やすいです"
+      />
+      <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
+      <CourtDataEditor state={state} update={update} />
+    </div>
+  )
+}
+
+/* ---------- トーナメント表スライド ---------- */
+
+export function BracketEditor({
+  slide,
+  state,
+  update,
+}: {
+  slide: BracketSlide
+  state: AppState
+  update: Update
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-sm text-slate-500">
+        「A-8勝者」のように書いた対戦相手のつながりをたどって、山形のトーナメント図を自動で描きます。
+        結果を入れると勝った側の線が太くなり、次の枠にクラス名が入ります。
+        「◯-◯敗者」（3位決定戦など）は別の山として描かれます。1ページに1コートずつ表示します。
+      </p>
+      <CourtPicker
+        courts={state.courts}
+        selected={slide.courts}
+        onToggle={(id) => toggleSlideCourt(update, slide.id, id)}
+        hint="選んだコートの数だけページができます"
+      />
       <div className="mb-1 font-bold text-slate-600">試合データの編集（全スライド共通）</div>
       <CourtDataEditor state={state} update={update} />
     </div>
@@ -916,6 +1005,8 @@ export function SlideEditor({
       return <MatchResultsEditor slide={slide} state={state} update={update} />
     case 'standings':
       return <StandingsEditor slide={slide} state={state} update={update} />
+    case 'bracket':
+      return <BracketEditor slide={slide} state={state} update={update} />
     case 'courtMap':
       return (
         <p className="text-slate-500">
